@@ -164,28 +164,49 @@ class Admin {
 	 */
 	public function add_plugin_admin_menu() {
 
+		//Trigger an action hook to allow custom code to add menu items before this plugin's settings menu item.
+		do_action ( 'wpec_before_settings_admin_menu_link' );
+
 		/**
 		 * Add a settings page for this plugin to the Settings menu.
 		 *
-		 * NOTE:  Alternative menu locations are available via WordPress administration menu functions.
-		 *
-		 *        Administration Menus: http://codex.wordpress.org/Administration_Menus
-		 *
-		 * @TODO:
-		 *
-		 * - Change 'Page Title' to the title of your plugin admin page
-		 * - Change 'Menu Text' to the text for menu item for the plugin settings page
-		 * - Change 'manage_options' to the capability you see fit
-		 *   For reference: http://codex.wordpress.org/Roles_and_Capabilities
+		 * NOTE: Alternative menu locations are available via WordPress administration menu functions.
+		 * Administration Menus: http://codex.wordpress.org/Administration_Menus
 		 */
 		$this->plugin_screen_hook_suffix = add_submenu_page(
-			'edit.php?post_type=' . Products::$products_slug,
-			__( 'WP Express Checkout Settings', 'wp-express-checkout' ),
-			__( 'Settings', 'wp-express-checkout' ),
-			Main::get_instance()->get_setting( 'access_permission' ),
-			'ppec-settings-page',
-			array( $this, 'display_plugin_admin_page' )
+			WPEC_MENU_PARENT_SLUG, /* parent slug */
+			__( 'WP Express Checkout Settings', 'wp-express-checkout' ),/* page title */
+			__( 'Settings', 'wp-express-checkout' ),/* menu text */
+			Main::get_instance()->get_setting( 'access_permission' ),/* capability */
+			'ppec-settings-page',/* menu slug */
+			array( $this, 'display_plugin_admin_page' )/* callback function */
 		);
+
+		/**
+		 * Add tools page link to the menu of this plugin.
+		 */
+		add_submenu_page(
+			WPEC_MENU_PARENT_SLUG,
+			__( 'WP Express Checkout Tools', 'wp-express-checkout' ),
+			__( 'Tools', 'wp-express-checkout' ),
+			Main::get_instance()->get_setting( 'access_permission' ),
+			'wpec-tools',
+			array( Tools_Admin_Menu::get_instance(), 'render_tools_menu_page' )
+		);
+
+		/**
+		 * Add the Addons/Extensions page link to the menu of this plugin.
+		 */
+		add_submenu_page(
+			WPEC_MENU_PARENT_SLUG,
+			__( 'WP Express Checkout Extensions', 'wp-express-checkout' ),
+			__( 'Extensions', 'wp-express-checkout' ),
+			Main::get_instance()->get_setting( 'access_permission' ),
+			'wpec-extensions',
+			array( Addons_Admin_Menu::get_instance(), 'render_addons_menu_page' )
+		);
+
+		// Register the settings sections and fields at admin init.
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 	}
 
@@ -203,18 +224,32 @@ class Admin {
 		register_setting( 'ppdg-settings-group', $this->option_name, array( $this, 'settings_sanitize_field_callback' ) );
 
 		/* Add the sections */
+		// General Settings Tab Sections
+		add_settings_section( 'ppdg-general-settings-arbitrary-section', __( '', 'wp-express-checkout' ), array( $this, 'handle_general_settings_arbitrary_section' ), $this->plugin_slug );
+
 		add_settings_section( 'ppdg-global-section', __( 'Global Settings', 'wp-express-checkout' ), null, $this->plugin_slug );
-		add_settings_section( 'ppdg-credentials-section', __( 'PayPal Credentials', 'wp-express-checkout' ), null, $this->plugin_slug );
 		add_settings_section( 'ppdg-form-section', __( 'Checkout Form', 'wp-express-checkout' ), null, $this->plugin_slug );
-		add_settings_section( 'ppdg-button-style-section', __( 'PayPal Button Style', 'wp-express-checkout' ), null, $this->plugin_slug );
-		add_settings_section( 'ppdg-disable-funding-section', __( 'Disable Funding', 'wp-express-checkout' ), array( $this, 'disable_funding_note' ), $this->plugin_slug );
 
 		add_settings_section( 'ppdg-shipping-tax-section', __( 'Shipping & Tax', 'wp-express-checkout' ), null, $this->plugin_slug );
 		add_settings_section( 'ppdg-debug-logging-section', __( 'Debug Logging', 'wp-express-checkout' ), array( $this, 'debug_logging_note' ), $this->plugin_slug );
 
+		// PayPal Settings Tab Sections
+		add_settings_section( 'ppdg-paypal-settings-arbitrary-section', __( '', 'wp-express-checkout' ), array( $this, 'handle_paypal_settings_arbitrary_section' ), $this->plugin_slug . '-pp-settings' );
+
+		add_settings_section( 'ppdg-live-sandbox-mode-section', __( 'Live Mode or Sandbox', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-api-connection' );
+		add_settings_section( 'ppdg-pp-account-connection-section', __( 'PayPal Account Connection', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-api-connection'  );
+		add_settings_section( 'ppdg-delete-cache-section', __( 'Delete Cache', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-api-connection'  );
+
+		add_settings_section( 'ppdg-credentials-section', __( 'PayPal API Credentials', 'wp-express-checkout' ), array( $this, 'paypal_api_credentials_section_note' ), $this->plugin_slug . '-pp-api-credentials');
+
+		add_settings_section( 'ppdg-button-style-section', __( 'PayPal Button Appearance Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-btn-appearance' );
+		add_settings_section( 'ppdg-disable-funding-section', __( 'Disable Funding', 'wp-express-checkout' ), array( $this, 'disable_funding_note' ), $this->plugin_slug . '-pp-btn-appearance');
+
+		// Email Settings Tab Sections
 		add_settings_section( 'ppdg-emails-general-section', __( 'General Email Settings', 'wp-express-checkout' ), array( $this, 'emails_general_note' ), $this->plugin_slug . '-emails' );
 		add_settings_section( 'ppdg-emails-section', __( 'Purchase Confirmation Email Settings', 'wp-express-checkout' ), array( $this, 'emails_note' ), $this->plugin_slug . '-emails' );
 
+		// Advanced Settings Tab Sections
 		add_settings_section( 'ppdg-price-display-section', __( 'Price Display Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-advanced' );
 		add_settings_section( 'ppdg-tos-section', __( 'Terms and Conditions', 'wp-express-checkout' ), array( $this, 'tos_description' ), $this->plugin_slug . '-advanced' );
 
@@ -262,41 +297,6 @@ class Admin {
 				'size'  => 100,
 			)
 		);
-		
-		// API details.
-		add_settings_field( 'is_live', __( 'Live Mode', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-credentials-section', array( 'field' => 'is_live', 'type' => 'checkbox', 'desc' => __( 'Check this to run the transaction in live mode. When unchecked it will run in sandbox mode.', 'wp-express-checkout' ) ) );
-		add_settings_field( 'live_client_id', __( 'Live Client ID', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-credentials-section',
-			array(
-				'field' => 'live_client_id',
-				'type'  => 'text',
-				'desc'  => sprintf( __( 'Enter your PayPal Client ID for live mode. <a href="%s" target="_blank">Read this documentation</a> to learn how to locate your Client ID.', 'wp-express-checkout' ), 'https://wp-express-checkout.com/getting-live-and-sandbox-client-ids/' ),
-				'size'  => 100,
-			)
-		);
-		add_settings_field( 'live_secret_key', __( 'Live Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-credentials-section',
-			array(
-				'field' => 'live_secret_key',
-				'type'  => 'text',
-				'desc'  => __( 'Enter your PayPal Secret Key for live mode.', 'wp-express-checkout' ),
-				'size'  => 100,
-			)
-		);
-		add_settings_field( 'sandbox_client_id', __( 'Sandbox Client ID', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-credentials-section',
-			array(
-				'field' => 'sandbox_client_id',
-				'type'  => 'text',
-				'desc'  => __( 'Enter your PayPal Client ID for sandbox mode.', 'wp-express-checkout' ),
-				'size'  => 100,
-			)
-		);
-		add_settings_field( 'sandbox_secret_key', __( 'Sandbox Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-credentials-section',
-			array(
-				'field' => 'sandbox_secret_key',
-				'type'  => 'text',
-				'desc'  => __( 'Enter your PayPal Secret Key for sandbox mode.', 'wp-express-checkout' ),
-				'size'  => 100,
-			)
-		);
 
 		// checkout form section
 		add_settings_field( 'use_modal', __( 'Show in a Popup/Modal Window', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-form-section',
@@ -314,57 +314,6 @@ class Admin {
 				'size'  => 20,
 				'desc'  => __( 'The button text for the button that will trigger the popup/modal window.', 'wp-express-checkout' ),
 			)
-		);
-
-		// button style section.
-		add_settings_field( 'btn_type', __( 'Button Type', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-button-style-section', array( 'field' => 'btn_type', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '', 'vals' => array( 'checkout', 'pay', 'paypal', 'buynow' ), 'texts' => array( __( 'Checkout', 'wp-express-checkout' ), __( 'Pay', 'wp-express-checkout' ), __( 'PayPal', 'wp-express-checkout' ), __( 'Buy Now', 'wp-express-checkout' ) ) ) );
-		add_settings_field( 'btn_shape', __( 'Button Shape', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-button-style-section', array( 'field' => 'btn_shape', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '', 'vals' => array( 'pill', 'rect' ), 'texts' => array( __( 'Pill', 'wp-express-checkout' ), __( 'Rectangle', 'wp-express-checkout' ) ) ) );
-		add_settings_field( 'btn_layout', __( 'Button Layout', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-button-style-section', array( 'field' => 'btn_layout', 'type' => 'radio', 'class' => 'wp-ppdg-button-style', 'desc' => __( '', 'wp-express-checkout' ), 'vals' => array( 'vertical', 'horizontal' ), 'texts' => array( __( 'Vertical', 'wp-express-checkout' ), __( 'Horizontal', 'wp-express-checkout' ) ) ) );
-		add_settings_field( 'btn_height', __( 'Button Height', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-button-style-section', array( 'field' => 'btn_height', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '', 'vals' => array( 'small', 'medium', 'large', 'xlarge' ), 'texts' => array( __( 'Small', 'wp-express-checkout' ), __( 'Medium', 'wp-express-checkout' ), __( 'Large', 'wp-express-checkout' ), __( 'Extra Large', 'wp-express-checkout' ) ) ) );
-		add_settings_field( 'btn_width', __( 'Button Width', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-button-style-section', array( 'field' => 'btn_width', 'type' => 'number', 'class' => 'wp-ppdg-button-style', 'placeholder' => __( 'Auto', 'wp-express-checkout' ), 'desc' => __( 'Button width in pixels. Minimum width is 150px. Leave it blank for auto width.', 'wp-express-checkout' ), 'size' => 10 ) );
-		add_settings_field( 'btn_color', __( 'Button Color', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-button-style-section', array( 'field' => 'btn_color', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '<div id="wp-ppdg-preview-container"><p>' . __( 'Button preview:', 'wp-express-checkout' ) . '</p><br /><div id="paypal-button-container"></div><div id="wp-ppdg-preview-protect"></div></div>', 'vals' => array( 'gold', 'blue', 'silver', 'white', 'black' ), 'texts' => array( __( 'Gold', 'wp-express-checkout' ), __( 'Blue', 'wp-express-checkout' ), __( 'Silver', 'wp-express-checkout' ), __( 'White', 'wp-express-checkout' ), __( 'Black', 'wp-express-checkout' ) ) ) );
-
-		// disable funding section.
-		add_settings_field( 
-			'disabled_funding',
-		__( 'Disabled Funding Options', 'wp-express-checkout' ),
-		array( $this, 'settings_field_callback' ),
-			$this->plugin_slug, 'ppdg-disable-funding-section',
-		array( 
-				'field' => 'disabled_funding', 
-				'type' => 'checkboxes', 
-				'desc' => '', 
-				'vals' => array( 
-					'card',
-					'credit',
-					'venmo',
-					'bancontact',
-					'blik',
-					'eps',
-					'giropay',					
-					'ideal',
-					'mercadopago',
-					'mybank',
-					'p24',
-					'sepa',
-					'sofort',
-				),
-				'texts' => array( 
-					__( 'Credit or debit cards', 'wp-express-checkout' ), 
-					__( 'PayPal Credit', 'wp-express-checkout' ), 
-					'Venmo',
-					'Bancontact',
-					'BLIK',
-					'eps',
-					'giropay',					
-					'iDEAL',
-					'Mercado Pago',
-					'MyBank',
-					'Przelewy24',
-					'SEPA-Lastschrift',
-					'Sofort',
-				)
-			) 
 		);
 
 		//add_settings_field( 'disabled_cards', __( 'Disabled Cards', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-disable-funding-section', array( 'field' => 'disabled_cards', 'type' => 'checkboxes', 'desc' => '', 'vals' => array( 'visa', 'mastercard', 'amex', 'discover', 'jcb', 'elo', 'hiper' ), 'texts' => array( __( 'Visa', 'wp-express-checkout' ), __( 'Mastercard', 'wp-express-checkout' ), __( 'American Express', 'wp-express-checkout' ), __( 'Discover', 'wp-express-checkout' ), __( 'JCB', 'wp-express-checkout' ), __( 'Elo', 'wp-express-checkout' ), __( 'Hiper', 'wp-express-checkout' ) ) ) );
@@ -393,6 +342,121 @@ class Admin {
 							__( ' to view log file.', 'wp-express-checkout' ) . '<br>' .
 							'<a id="wpec-reset-log" href="#0" style="color: red">' . __( 'Click here', 'wp-express-checkout' ) . '</a>' .
 							__( ' to reset log file.', 'wp-express-checkout' ) . '</p>',
+			)
+		);
+
+		/****************************/
+		/* PayPal Settings Menu Tab */
+		/****************************/
+
+		add_settings_field( 'is_live', __( 'Live Mode', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-api-connection', 'ppdg-live-sandbox-mode-section', array( 'field' => 'is_live', 'type' => 'checkbox', 'desc' => __( 'Enable this to run transactions in live mode. When unchecked, transactions will be processed in sandbox mode.', 'wp-express-checkout' ) ) );
+
+		add_settings_field(
+			'live-account-connection-status',
+			__( 'Live Account Connnection Status', 'wp-express-checkout' ),
+			array( $this, 'live_account_connection_status_callback' ),
+			$this->plugin_slug .'-pp-api-connection',
+			'ppdg-pp-account-connection-section'
+		);
+		add_settings_field(
+			'sandbox-account-connection-status',
+			__( 'Sandbox Account Connection Status', 'wp-express-checkout' ),
+			array( $this, 'sandbox_account_connection_status_callback' ),
+			$this->plugin_slug .'-pp-api-connection',
+			'ppdg-pp-account-connection-section'
+		);
+
+		add_settings_field(
+			'delete-cache',
+			__( 'Delete Access Token Cache', 'wp-express-checkout' ),
+			array( $this, 'delete_cache_field_callback' ),
+			$this->plugin_slug .'-pp-api-connection',
+			'ppdg-delete-cache-section'
+		);
+
+		// API details.
+		add_settings_field( 'live_client_id', __( 'Live Client ID', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug. '-pp-api-credentials', 'ppdg-credentials-section',
+			array(
+				'field' => 'live_client_id',
+				'type'  => 'text',
+				'desc'  => __( 'Enter your PayPal Client ID for live mode.', 'wp-express-checkout' ),
+				'size'  => 100,
+			)
+		);
+		add_settings_field( 'live_secret_key', __( 'Live Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug .'-pp-api-credentials', 'ppdg-credentials-section',
+			array(
+				'field' => 'live_secret_key',
+				'type'  => 'text',
+				'desc'  => __( 'Enter your PayPal Secret Key for live mode.', 'wp-express-checkout' ),
+				'size'  => 100,
+			)
+		);
+		add_settings_field( 'sandbox_client_id', __( 'Sandbox Client ID', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug .'-pp-api-credentials', 'ppdg-credentials-section',
+			array(
+				'field' => 'sandbox_client_id',
+				'type'  => 'text',
+				'desc'  => __( 'Enter your PayPal Client ID for sandbox mode.', 'wp-express-checkout' ),
+				'size'  => 100,
+			)
+		);
+		add_settings_field( 'sandbox_secret_key', __( 'Sandbox Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug .'-pp-api-credentials', 'ppdg-credentials-section',
+			array(
+				'field' => 'sandbox_secret_key',
+				'type'  => 'text',
+				'desc'  => __( 'Enter your PayPal Secret Key for sandbox mode.', 'wp-express-checkout' ),
+				'size'  => 100,
+			)
+		);
+
+		// button style section.
+		add_settings_field( 'btn_type', __( 'Button Type', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-btn-appearance', 'ppdg-button-style-section', array( 'field' => 'btn_type', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '', 'vals' => array( 'checkout', 'pay', 'paypal', 'buynow' ), 'texts' => array( __( 'Checkout', 'wp-express-checkout' ), __( 'Pay', 'wp-express-checkout' ), __( 'PayPal', 'wp-express-checkout' ), __( 'Buy Now', 'wp-express-checkout' ) ) ) );
+		add_settings_field( 'btn_shape', __( 'Button Shape', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-btn-appearance', 'ppdg-button-style-section', array( 'field' => 'btn_shape', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '', 'vals' => array( 'pill', 'rect' ), 'texts' => array( __( 'Pill', 'wp-express-checkout' ), __( 'Rectangle', 'wp-express-checkout' ) ) ) );
+		add_settings_field( 'btn_layout', __( 'Button Layout', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-btn-appearance', 'ppdg-button-style-section', array( 'field' => 'btn_layout', 'type' => 'radio', 'class' => 'wp-ppdg-button-style', 'desc' => __( '', 'wp-express-checkout' ), 'vals' => array( 'vertical', 'horizontal' ), 'texts' => array( __( 'Vertical', 'wp-express-checkout' ), __( 'Horizontal', 'wp-express-checkout' ) ) ) );
+		add_settings_field( 'btn_height', __( 'Button Height', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-btn-appearance', 'ppdg-button-style-section', array( 'field' => 'btn_height', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '', 'vals' => array( 'small', 'medium', 'large', 'xlarge' ), 'texts' => array( __( 'Small', 'wp-express-checkout' ), __( 'Medium', 'wp-express-checkout' ), __( 'Large', 'wp-express-checkout' ), __( 'Extra Large', 'wp-express-checkout' ) ) ) );
+		add_settings_field( 'btn_width', __( 'Button Width', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-btn-appearance', 'ppdg-button-style-section', array( 'field' => 'btn_width', 'type' => 'number', 'class' => 'wp-ppdg-button-style', 'placeholder' => __( 'Auto', 'wp-express-checkout' ), 'desc' => __( 'Button width in pixels. Minimum width is 150px. Leave it blank for auto width.', 'wp-express-checkout' ), 'size' => 10 ) );
+		add_settings_field( 'btn_color', __( 'Button Color', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-btn-appearance', 'ppdg-button-style-section', array( 'field' => 'btn_color', 'type' => 'select', 'class' => 'wp-ppdg-button-style', 'desc' => '<div id="wp-ppdg-preview-container"><p>' . __( 'Button preview:', 'wp-express-checkout' ) . '</p><br /><div id="paypal-button-container"></div><div id="wp-ppdg-preview-protect"></div></div>', 'vals' => array( 'gold', 'blue', 'silver', 'white', 'black' ), 'texts' => array( __( 'Gold', 'wp-express-checkout' ), __( 'Blue', 'wp-express-checkout' ), __( 'Silver', 'wp-express-checkout' ), __( 'White', 'wp-express-checkout' ), __( 'Black', 'wp-express-checkout' ) ) ) );
+
+		// disable funding section.
+		add_settings_field(
+			'disabled_funding',
+			__( 'Disabled Funding Options', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug. '-pp-btn-appearance',
+			'ppdg-disable-funding-section',
+			array(
+				'field' => 'disabled_funding',
+				'type' => 'checkboxes',
+				'desc' => '',
+				'vals' => array(
+					'card',
+					'credit',
+					'venmo',
+					'bancontact',
+					'blik',
+					'eps',
+					'giropay',
+					'ideal',
+					'mercadopago',
+					'mybank',
+					'p24',
+					'sepa',
+					'sofort',
+				),
+				'texts' => array(
+					__( 'Credit or debit cards', 'wp-express-checkout' ),
+					__( 'PayPal Credit', 'wp-express-checkout' ),
+					'Venmo',
+					'Bancontact',
+					'BLIK',
+					'eps',
+					'giropay',
+					'iDEAL',
+					'Mercado Pago',
+					'MyBank',
+					'Przelewy24',
+					'SEPA-Lastschrift',
+					'Sofort',
+				)
 			)
 		);
 
@@ -643,6 +707,18 @@ class Admin {
 		printf( '<p><i>%s</p></i>', esc_html__( 'The following options affect the notification emails sent after a purchase.', 'wp-express-checkout' ) );
 	}
 
+
+	/**
+	 * The section `ppdg-credentials-section` callback.
+	 */
+	public function paypal_api_credentials_section_note() {
+		echo '<p class="description">';
+		$manual_pp_api_documentation_link = "https://wp-express-checkout.com/getting-live-and-sandbox-client-ids/";
+		_e("If you have used the automatic option to connect and get your PayPal API credentials from the 'PayPal API Connection' tab, they will be displayed below. The following section also allows for manual entry of your PayPal API credentials in case the automatic option is non-functional for your PayPal account.", "wp-express-checkout");
+		echo '&nbsp;' . '<a href="' . $manual_pp_api_documentation_link . '" target="_blank">' . __('Read this documentation', 'wp-express-checkout') . '</a> ' . __('to learn how to manually set up the API credentials.', 'wp-express-checkout');
+		echo '</p>';
+	}
+
 	/**
 	 * The section `ppdg-disable-funding-section` callback.
 	 */
@@ -795,6 +871,76 @@ class Admin {
 		}
 	}
 
+	public function live_account_connection_status_callback(){
+		$global_settings = get_option('ppdg-settings', array());
+
+		// Check if the live account is connected
+		$live_account_connection_status = 'connected';
+		if ( empty( $global_settings['live_client_id'] ) || empty( $global_settings['live_secret_key'] ) ) {
+			//Live API keys are missing. Account is not connected.
+			$live_account_connection_status = 'not-connected';
+		}
+
+		$ppcp_onboarding_instance = \TTHQ\WPEC\Lib\PayPal\Onboarding\PayPal_PPCP_Onboarding::get_instance();
+
+		if ($live_account_connection_status == 'connected') {
+			//Production account connected
+			echo '<div class="wpec-paypal-live-account-status"><span class="dashicons dashicons-yes" style="color:green;"></span>&nbsp;';
+			_e("Live account is connected. If you experience any issues, please disconnect and reconnect.", "wp-express-checkout");
+			echo '</div>';
+
+			// Show disconnect option for live account.
+			$ppcp_onboarding_instance->output_production_ac_disconnect_link();
+		} else {
+			//Production account is NOT connected.
+			echo '<div class="wpec-paypal-live-account-status"><span class="dashicons dashicons-no" style="color: red;"></span>&nbsp;';
+			_e("Live PayPal account is not connected. Click the button below to authorize the app and acquire API credentials from your PayPal account.", "wp-express-checkout");
+			echo '</div>';
+
+			// Show the onboarding link
+			$ppcp_onboarding_instance->output_production_onboarding_link_code();
+		}
+	}
+
+	public function sandbox_account_connection_status_callback(){
+		$global_settings = get_option('ppdg-settings', array());
+
+		// Check if the live account is connected
+		$sandbox_account_connection_status = 'connected';
+		if ( empty( $global_settings['sandbox_client_id'] ) || empty( $global_settings['sandbox_secret_key'] ) ) {
+			//Sandbox API keys are missing. Account is not connected.
+			$sandbox_account_connection_status = 'not-connected';
+		}
+
+		$ppcp_onboarding_instance = \TTHQ\WPEC\Lib\PayPal\Onboarding\PayPal_PPCP_Onboarding::get_instance();
+
+		if ($sandbox_account_connection_status == 'connected') {
+			//Production account connected
+			echo '<div class="wpec-paypal-sandbox-account-status"><span class="dashicons dashicons-yes" style="color:green;"></span>&nbsp;';
+			_e("Sandbox account is connected. If you experience any issues, please disconnect and reconnect.", "wp-express-checkout");
+			echo '</div>';
+
+			// Show disconnect option for live account.
+			$ppcp_onboarding_instance->output_sandbox_ac_disconnect_link();
+		} else {
+			//Production account is NOT connected.
+			echo '<div class="wpec-paypal-sandbox-account-status"><span class="dashicons dashicons-no" style="color: red;"></span>&nbsp;';
+			_e("Sandbox PayPal account is not connected. Click the button below to authorize the app and acquire API credentials from your PayPal account.", "wp-express-checkout");
+			echo '</div>';
+
+			// Show the onboarding link
+			$ppcp_onboarding_instance->output_sandbox_onboarding_link_code();
+		}
+	}
+
+	public function delete_cache_field_callback() {
+		$delete_cache_url = admin_url(\TTHQ\WPEC\Lib\PayPal\PayPal_Main::$pp_api_connection_settings_menu_page);
+		$delete_cache_url = add_query_arg('wpec_ppcp_delete_cache', 1, $delete_cache_url);
+		$delete_cache_url_nonced = add_query_arg('_wpnonce', wp_create_nonce('wpec_ppcp_delete_cache'), $delete_cache_url);
+		echo '<a class="button wpsc-paypal-delete-cache-btn" href="' . esc_url_raw($delete_cache_url_nonced) . '">' . __('Delete Token Cache', 'wp-express-checkout') . '</a>';
+		echo '<p class="description">' . __( 'This will delete the PayPal API access token cache. This is useful if you are having issues with the PayPal API after changing/updating the API credentials.', 'wp-express-checkout' ).'</p>';
+	}
+
 	protected function wrap_label( $input, $label = '', $label_pos = 'before' ) {
 		$label_wrap = '%s';
 		if ( $label ) {
@@ -902,7 +1048,7 @@ class Admin {
 	public function add_action_links( $links ) {
 
 		return array_merge(
-			array( 'settings' => '<a href="' . admin_url( 'edit.php?post_type=' . Products::$products_slug . '&page=ppec-settings-page' ) . '">' . __( 'Settings', 'wp-express-checkout' ) . '</a>' ),
+			array( 'settings' => '<a href="' . admin_url( WPEC_MENU_PARENT_SLUG . '&page=ppec-settings-page' ) . '">' . __( 'Settings', 'wp-express-checkout' ) . '</a>' ),
 			$links
 		);
 	}
@@ -946,6 +1092,32 @@ class Admin {
 		}
 	}
 
+	/**
+	 * Prints out all settings sections added to a particular settings page.
+	 *
+	 * Same as "do_settings_sections" but without any HTML.
+	 */
+	public function do_settings_sections_no_wrap( $page ) {
+		global $wp_settings_sections, $wp_settings_fields;
+
+		if ( ! isset( $wp_settings_sections[ $page ] ) ) {
+			return;
+		}
+
+		foreach ( (array) $wp_settings_sections[ $page ] as $section ) {
+
+			if ( isset($section['callback']) ) {
+				call_user_func( $section['callback'], $section );
+			}
+
+			if ( ! isset( $wp_settings_fields ) || ! isset( $wp_settings_fields[ $page ] ) || ! isset( $wp_settings_fields[ $page ][ $section['id'] ] ) ) {
+				continue;
+			}
+
+			do_settings_fields( $page, $section['id'] );
+		}
+	}
+
 	public function set_default_editor( $r ) {
 		$r = 'html';
 		return $r;
@@ -953,6 +1125,68 @@ class Admin {
 
 	public static function gen_help_popup( $contents ) {
 		return '<div class="wpec-help"><i class="dashicons dashicons-editor-help"></i><div class="wpec-help-text">' . $contents . '</div></div>';
+	}
+
+	public function handle_general_settings_arbitrary_section() {
+		echo '<p>';
+		echo __('Refer to the ', 'wp-express-checkout');
+		echo '<a href="https://wp-express-checkout.com/wp-express-checkout-plugin-documentation/" target="_blank">'.__('plugin documentation', 'wp-express-checkout').'</a>';
+		echo __(' for a detailed guide on configuration and usage.', 'wp-express-checkout');
+		echo '</p>';
+	}
+
+	public function handle_paypal_settings_arbitrary_section() {
+		echo '<div class="wpec-white-box">';
+		echo __('Check the ', 'wp-express-checkout');
+		echo '<a href="https://wp-express-checkout.com/paypal-settings-configuration-api-credentials-setup/" target="_blank">'.__('PayPal settings documentation', 'wp-express-checkout').'</a>';
+		echo __(' for a step-by-step guide on configuring these settings.', 'wp-express-checkout');
+		echo '</div>';
+
+		//NOTE: We can't update/save the reset API settings keys here as WP locks the settings fields for the current page.
+		//So the reset it done at 'admin_init' hook. Then the success message is shown here.
+		//Show any messages related to PayPal onboarding.
+		self::paypal_onboard_actions_messages_handler();
+	}
+
+	public static function paypal_onboard_actions_handler() {
+		if (isset($_GET['wpec_ppcp_disconnect_production'])){
+			//Verify nonce
+			check_admin_referer( 'wpec_ac_disconnect_nonce_production' );
+
+			\TTHQ\WPEC\Lib\PayPal\Onboarding\PayPal_PPCP_Onboarding_Serverside::reset_seller_api_credentials('production');
+		}
+
+		if (isset($_GET['wpec_ppcp_disconnect_sandbox'])){
+			//Verify nonce
+			check_admin_referer( 'wpec_ac_disconnect_nonce_sandbox' );
+
+			\TTHQ\WPEC\Lib\PayPal\Onboarding\PayPal_PPCP_Onboarding_Serverside::reset_seller_api_credentials('sandbox');
+		}
+
+		if (isset($_GET['wpec_ppcp_delete_cache'])) {
+			check_admin_referer('wpec_ppcp_delete_cache');
+			delete_transient( \TTHQ\WPEC\Lib\PayPal\PayPal_Bearer::BEARER_CACHE_KEY );
+		}
+	}
+
+	public static function paypal_onboard_actions_messages_handler() {
+		if (isset($_GET['wpec_ppcp_after_onboarding'])){
+			$environment_mode = isset($_GET['environment_mode']) ? sanitize_text_field($_GET['environment_mode']) : '';
+			$message = __("PayPal merchant account connection setup completed for environment mode: ", "wp-express-checkout") . esc_attr($environment_mode);
+			echo '<div class="notice notice-success"><p>' . $message . '</p></div>';
+		}
+
+		if (isset($_GET['wpec_ppcp_disconnect_production'])){
+			echo '<div class="notice notice-success"><p>' . __('PayPal account disconnected.', 'wp-express-checkout') . '</p></div>';
+		}
+
+		if (isset($_GET['wpec_ppcp_disconnect_sandbox'])){
+			echo '<div class="notice notice-success"><p>' . __('PayPal sandbox account disconnected.', 'wp-express-checkout') . '</p></div>';
+		}
+
+		if (isset($_GET['wpec_ppcp_delete_cache'])) {
+			echo '<div class="notice notice-success"><p>' . __('PayPal API access token cache deleted successfully.', 'wp-express-checkout') . '</p></div>';
+		}
 	}
 
 }

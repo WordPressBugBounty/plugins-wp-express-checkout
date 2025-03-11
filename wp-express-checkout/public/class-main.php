@@ -164,7 +164,7 @@ class Main {
 			wpec_onDocumentReady(function(){
 				var script = document.createElement( 'script' );
 				script.type = 'text/javascript';
-				script.setAttribute( 'data-partner-attribution-id', 'TipsandTricks_SP' );
+				script.setAttribute( 'data-partner-attribution-id', 'TipsandTricks_SP_PPCP' );
 				script.async = true;
 				script.src = '<?php echo esc_url_raw( $script_url ); ?>';	
 				script.onload = function () {
@@ -344,7 +344,7 @@ class Main {
 	 */
 	public static function get_defaults() {
 		$defaults = array(
-			'is_live'              => 0,
+			'is_live'              => 1,
 			'live_client_id'       => '',
 			'sandbox_client_id'    => '',
 			'live_secret_key'      => '',

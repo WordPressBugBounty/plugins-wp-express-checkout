@@ -39,7 +39,7 @@ class Orders_Meta_Boxes {
 		add_meta_box( 'wpec_order_downloads', __( 'Order Downloads', 'wp-express-checkout' ), array( $this, 'display_downloads_meta_box' ), Orders::PTYPE, 'normal', 'default' );
 		add_meta_box( 'wpec_order_actions', __( 'Order Actions', 'wp-express-checkout' ), array( $this, 'display_actions_meta_box' ), Orders::PTYPE, 'side', 'high' );
 		add_meta_box( 'wpec_order_status', __( 'Order Status', 'wp-express-checkout' ), array( $this, 'display_status_meta_box' ), Orders::PTYPE, 'side', 'high' );
-		add_meta_box( 'wpec_order_author', __( 'Order Author', 'wp-express-checkout' ), array( $this, 'display_author_meta_box' ), Orders::PTYPE, 'side', 'low' );
+		add_meta_box( 'wpec_customer', __( 'Customer', 'wp-express-checkout' ), array( $this, 'display_customer_meta_box' ), Orders::PTYPE, 'side', 'low' );
 		add_meta_box( 'wpec_order_notes', __( 'Order Notes', 'wp-express-checkout' ), array( $this, 'display_notes_meta_box' ), Orders::PTYPE, 'side', 'low' );
 
 		wp_enqueue_script( 'wpec-admin-scripts', WPEC_PLUGIN_URL . '/assets/js/admin.js', array(), WPEC_PLUGIN_VER, true );
@@ -220,7 +220,7 @@ class Orders_Meta_Boxes {
 	 * @param  object $post Wordpress Post object
 	 * @return void
 	 */
-	function display_author_meta_box ( $post ){
+	function display_customer_meta_box ( $post ){
 
 		try {
 			$order = Orders::retrieve( $post->ID );
@@ -230,39 +230,60 @@ class Orders_Meta_Boxes {
 		?>
 		<style type="text/css">
 			#admin-order-author{
-				padding-left: 10px;
 				text-align: left;
 			}
 			.avatar{
 				float: left;
+				margin-right: 10px;
 			}
 		</style>
 		<?php
-		$user      = get_userdata( $order->get_author() );
+		$wp_user      = get_userdata( $order->get_author() );
 		$payer     = $order->get_data( 'payer' );
-		$username  = '';
-		$useremail = '';
+		$payer_name  = '';
+		$wp_username  = '';
+		$payer_email = '';
 		
 		$ip_address = ! empty($order->get_ip_address()) ? $order->get_ip_address() : __( 'N/A', 'wp-express-checkout' );
 		$billing_address   = ! empty( $payer['address'] ) ? implode( ', ', (array) $payer['address'] ) : __( 'N/A', 'wp-express-checkout' );
 		$shipping_address  = ! empty( $order->get_shipping_address() ) ? $order->get_shipping_address() : __( 'N/A', 'wp-express-checkout' );;
 		if ( $payer ) {
-			$username = implode( ' ', array( $payer['name']['given_name'], $payer['name']['surname'] ) );
-			$useremail = $payer['email_address'];
-		} else if ( $user ) {
-			$username  = $user->user_login !== $user->display_name ? $user->display_name . ' (' . $user->user_login . ') ' : $user->user_login;
-			$useremail = $user->user_email;
+            $payer_name_array = array();
+			$payer_name_array[] = isset($payer['name']['given_name']) ? sanitize_text_field($payer['name']['given_name']) : '';
+			$payer_name_array[] = isset($payer['name']['surname']) ? sanitize_text_field($payer['name']['surname']) : '';
+
+            $payer_name = implode( ' ', array_filter($payer_name_array) ); // Filters empty value and implode the remaining.
+
+            $payer_email = isset($payer['email_address']) ? sanitize_email($payer['email_address']) : '';
+		}
+        if ( $wp_user ) {
+			// $wp_username  = $wp_user->user_login !== $wp_user->display_name ? $wp_user->display_name . ' (' . $wp_user->user_login . ') ' : $wp_user->user_login;
+			$wp_username  = $wp_user->user_login;
 		}
 		?>
-		<?php echo get_avatar( $useremail, 72 ); ?>
+		<?php 
+		//WP might be sunsetting Gravatar, so let's not use it anymore. It isn't necessary for this customer box.
+		//echo get_avatar( $useremail, 72 ); 
+		?>
 		<table id="admin-order-author">
 			<tbody>
+                <?php if (!empty($payer_name)) {?>
 				<tr>
-					<td><?php echo esc_attr($username); ?></td>
+					<td><?php echo esc_attr($payer_name); ?></td>
 				</tr>
 				<tr>
-					<td><?php echo esc_attr($useremail); ?></td>
-				</tr>
+					<td><?php echo esc_attr($payer_email); ?></td>
+				</tr>				
+                <?php } ?>
+                <?php if (!empty($wp_username)) {?>
+                    <tr>
+					<td>
+						<strong><?php esc_html_e( 'WP Username:', 'wp-express-checkout' ); ?></strong></td>
+                    </tr>
+					<tr>
+						<td><?php echo esc_attr($wp_username); ?></td>
+					</tr>					
+                <?php } ?>
 
 				<?php if ( !empty($ip_address) ) { ?>
 					<tr>

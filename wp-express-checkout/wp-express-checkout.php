@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       WP Express Checkout
  * Description:       This plugin allows you to create a customizable PayPal payment button that lets the customers pay quickly in a popup via PayPal.
- * Version:           2.3.17
- * Author:            Tips and Tricks HQ
+ * Version:           2.4.0
+ * Author:            Tips and Tricks HQ, mra13
  * Author URI:        https://www.tipsandtricks-hq.com/
  * Plugin URI:        https://wp-express-checkout.com/
  * License:           GPL2
@@ -17,11 +17,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 //Define constants
-define( 'WPEC_PLUGIN_VER', '2.3.17' );
+define( 'WPEC_PLUGIN_VER', '2.4.0' );
 define( 'WPEC_PLUGIN_URL', plugins_url( '', __FILE__ ) );
 define( 'WPEC_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPEC_PLUGIN_FILE', __FILE__ );
 define( 'WPEC_PRODUCT_POST_TYPE_SLUG', 'ppec-products' );//Slowy use this constant instead of hardcoding the slug in the code.
+define( 'WPEC_MENU_PARENT_SLUG', 'edit.php?post_type=' . WPEC_PRODUCT_POST_TYPE_SLUG );
 define( 'WPEC_LOAD_NON_MINIFIED', true );//Set to true to load the non-minified version.
 
 /* ----------------------------------------------------------------------------*
@@ -51,10 +52,20 @@ function wpec_load_classes() {
 	new WP_Express_Checkout\PayPal_Payment_Button_Ajax_Handler();
 	new WP_Express_Checkout\Integrations\WooCommerce_Payment_Button_Ajax_Handler();
 
+	new TTHQ\WPEC\Lib\PayPal\PayPal_Main(
+		array(
+			'plugin_shortname' => 'wpec',
+			'api_connection_settings_page' => WPEC_MENU_PARENT_SLUG . '&page=ppec-settings-page&action=paypal-settings',
+			'log_text_method' => '\WP_Express_Checkout\Debug\Logger::log',
+			'log_array_method' => '\WP_Express_Checkout\Debug\Logger::log_array_data',
+			'ppcp_settings_key' => 'ppdg-settings',
+			'enable_sandbox_settings_key' => 'is_live',
+		)
+	);
+
 	// Load admin side class
 	if ( is_admin() ) {
 		WP_Express_Checkout\Admin\Admin::get_instance();
-		WP_Express_Checkout\Admin\Tools::get_instance();
 		new WP_Express_Checkout\Coupons();
 		new WP_Express_Checkout\Admin\Orders_Meta_Boxes();
 	}
@@ -72,7 +83,7 @@ register_deactivation_hook( __FILE__, array( 'WP_Express_Checkout\Main', 'deacti
  */
 function wpec_add_settings_link($links, $file) {
     if ($file == plugin_basename(__FILE__)) {
-        $settings_link = '<a href="edit.php?post_type=ppec-products&page=ppec-settings-page">Settings</a>';
+        $settings_link = '<a href="'.WPEC_MENU_PARENT_SLUG.'&page=ppec-settings-page">Settings</a>';
         array_unshift($links, $settings_link);
     }
     return $links;

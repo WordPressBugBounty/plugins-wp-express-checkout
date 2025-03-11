@@ -15,7 +15,10 @@ class Coupons {
 		add_action( 'wpec_create_order', array( $this, 'add_discount_to_order' ), 30, 3 );
 		add_action( 'wpec_payment_completed', array( $this, 'redeem_coupon' ), 10, 3 );
 		if ( is_admin() ) {
-			add_action( 'admin_menu', array( $this, 'add_menu' ) );
+			//We will use this hook to add coupons menu before the settings menu link.
+			add_action( 'wpec_before_settings_admin_menu_link', array( $this, 'add_coupons_menu' ) );
+
+			//Ajax requests for coupon check
 			if ( wp_doing_ajax() ) {
 				add_action( 'wp_ajax_wpec_check_coupon', array( $this, 'frontend_check_coupon' ) );
 				add_action( 'wp_ajax_nopriv_wpec_check_coupon', array( $this, 'frontend_check_coupon' ) );
@@ -153,8 +156,8 @@ class Coupons {
 		}
 	}
 
-	function add_menu() {
-		add_submenu_page( 'edit.php?post_type=' . Products::$products_slug, __( 'Coupons', 'wp-express-checkout' ), __( 'Coupons', 'wp-express-checkout' ), Main::get_instance()->get_setting( 'access_permission' ), 'wpec-coupons', array( $this, 'display_coupons_menu_page' ) );
+	function add_coupons_menu() {
+		add_submenu_page( WPEC_MENU_PARENT_SLUG, __( 'Coupons', 'wp-express-checkout' ), __( 'Coupons', 'wp-express-checkout' ), Main::get_instance()->get_setting( 'access_permission' ), 'wpec-coupons', array( $this, 'display_coupons_menu_page' ) );
 	}
 
 	function save_settings() {
@@ -489,7 +492,7 @@ class Coupons {
 		// translators: %s is coupon code
 		set_transient( 'wpec_coupons_admin_notice', sprintf( $is_edit ? __( 'Coupon "%s" has been updated.', 'wp-express-checkout' ) : __( 'Coupon "%s" has been created.', 'wp-express-checkout' ), esc_attr($coupon['code']) ), 60 * 60 );
 
-		wp_safe_redirect( 'edit.php?post_type=' . Products::$products_slug . '&page=wpec-coupons' );
+		wp_safe_redirect( WPEC_MENU_PARENT_SLUG . '&page=wpec-coupons' );
 		exit;
 	}
 

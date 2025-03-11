@@ -14,8 +14,8 @@ use WP_Express_Checkout\Debug\Logger;
 class Init {
 
 	public function __construct() {
-
 		add_action( 'init', array( $this, 'do_init_time_tasks' ) );
+		add_action( 'admin_init', array( $this, 'do_admin_init_time_tasks' ) );
 	}
 
 	public function do_init_time_tasks() {
@@ -58,6 +58,10 @@ class Init {
 
 			//NOP
 		}
+	}
+
+	public function do_admin_init_time_tasks() {
+		\WP_Express_Checkout\Admin\Admin::paypal_onboard_actions_handler();
 	}
 
 	public function wpec_handle_reset_log() {
