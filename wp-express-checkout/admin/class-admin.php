@@ -242,8 +242,9 @@ class Admin {
 
 		add_settings_section( 'ppdg-credentials-section', __( 'PayPal API Credentials', 'wp-express-checkout' ), array( $this, 'paypal_api_credentials_section_note' ), $this->plugin_slug . '-pp-api-credentials');
 
-		add_settings_section( 'ppdg-button-style-section', __( 'PayPal Button Appearance Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-btn-appearance' );
+		add_settings_section( 'ppdg-button-style-section', __( 'PayPal Button Appearance Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-btn-appearance' );		
 		add_settings_section( 'ppdg-disable-funding-section', __( 'Disable Funding', 'wp-express-checkout' ), array( $this, 'disable_funding_note' ), $this->plugin_slug . '-pp-btn-appearance');
+		add_settings_section( 'ppdg-paypal-language', __( 'PayPal Language', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-btn-appearance' );
 
 		// Email Settings Tab Sections
 		add_settings_section( 'ppdg-emails-general-section', __( 'General Email Settings', 'wp-express-checkout' ), array( $this, 'emails_general_note' ), $this->plugin_slug . '-emails' );
@@ -256,6 +257,9 @@ class Admin {
 		add_settings_section( 'ppdg-link-expiry-section', __( 'Download Link Expiry', 'wp-express-checkout' ), null, $this->plugin_slug . '-advanced' );
 		add_settings_section( 'ppdg-dl-manager-section', __( 'Download Manager (Force Download)', 'wp-express-checkout' ), array( $this, 'dl_manager_description' ), $this->plugin_slug . '-advanced' );
 		add_settings_section( 'wpec-access-section', __( 'Admin Dashboard Access Permission', 'wp-express-checkout' ), array( $this, 'access_description' ), $this->plugin_slug . '-advanced' );
+
+		// Manual Checkout Tab Sections
+		add_settings_section( 'wpec-manual-checkout-section', __( 'Manual/Offline Checkout Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-manual-checkout' );
 
 		/* Add the settings fields */
 
@@ -280,21 +284,25 @@ class Admin {
 				'size'  => 10,
 			)
 		);
+
+		//Thank you page URL. We will style the size of the field using CSS
+		$ty_description = __( 'This is the Thank You page. This page is automatically created for you when you install the plugin. Do not delete this page from the pages menu of your site. The plugin will send the customers to this page after the payment. If you have accidentally deleted this page, then re-create it using <a href="https://wp-express-checkout.com/recreating-the-required-express-checkout-plugin-pages/" target="_blank">this documentation</a>.', 'wp-express-checkout' );
+		$ty_description .= '<br /><b>' . __( 'Important Note: ', 'stripe-payments' ) . '</b> ' . __( 'If you are using a caching solution on your site (e.g., WP Super Cache), you must exclude this page from caching. Failing to do so can result in unpredictable behavior on the Thank You page.', 'wp-express-checkout' );
+
 		add_settings_field( 'thank_you_url', __( 'Thank You Page URL', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-global-section',
 			array(
 				'field' => 'thank_you_url',
 				'type'  => 'text',
-				'desc'  => sprintf( __( 'This is the thank you page. This page is automatically created for you when you install the plugin. Do not delete this page from the pages menu of your site. The plugin will send the customers to this page after the payment. If you have accidentally deleted this page, then re-create it using <a href="https://wp-express-checkout.com/recreating-the-required-express-checkout-plugin-pages/" target="_blank">this documentation</a>.', 'wp-express-checkout' ) ),
-				'size'  => 100,
+				'desc'  => sprintf( $ty_description),
 			)
 		);
 
+		//Shop page URL. We will style the size of the field using CSS
 		add_settings_field( 'shop_page_url', __( 'Shop Page URL', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug, 'ppdg-global-section',
 			array(
 				'field' => 'shop_page_url',
 				'type'  => 'text',
 				'desc'  => sprintf( __( 'All your products will be listed here in a grid display. When you create new products, they will show up in this page. This page is automatically created for you when you install the plugin. You can add this page to your navigation menu if you want the site visitors to find it easily. Do not delete this page. If you have accidentally deleted this page, then re-create it using <a href="https://wp-express-checkout.com/recreating-the-required-express-checkout-plugin-pages/" target="_blank">this documentation</a>.', 'wp-express-checkout' ) ),
-				'size'  => 100,
 			)
 		);
 
@@ -374,13 +382,12 @@ class Admin {
 			'ppdg-delete-cache-section'
 		);
 
-		// API details.
+		// API details. We will style the size of the field using CSS
 		add_settings_field( 'live_client_id', __( 'Live Client ID', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug. '-pp-api-credentials', 'ppdg-credentials-section',
 			array(
 				'field' => 'live_client_id',
 				'type'  => 'text',
 				'desc'  => __( 'Enter your PayPal Client ID for live mode.', 'wp-express-checkout' ),
-				'size'  => 100,
 			)
 		);
 		add_settings_field( 'live_secret_key', __( 'Live Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug .'-pp-api-credentials', 'ppdg-credentials-section',
@@ -388,7 +395,6 @@ class Admin {
 				'field' => 'live_secret_key',
 				'type'  => 'text',
 				'desc'  => __( 'Enter your PayPal Secret Key for live mode.', 'wp-express-checkout' ),
-				'size'  => 100,
 			)
 		);
 		add_settings_field( 'sandbox_client_id', __( 'Sandbox Client ID', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug .'-pp-api-credentials', 'ppdg-credentials-section',
@@ -396,7 +402,6 @@ class Admin {
 				'field' => 'sandbox_client_id',
 				'type'  => 'text',
 				'desc'  => __( 'Enter your PayPal Client ID for sandbox mode.', 'wp-express-checkout' ),
-				'size'  => 100,
 			)
 		);
 		add_settings_field( 'sandbox_secret_key', __( 'Sandbox Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug .'-pp-api-credentials', 'ppdg-credentials-section',
@@ -404,7 +409,6 @@ class Admin {
 				'field' => 'sandbox_secret_key',
 				'type'  => 'text',
 				'desc'  => __( 'Enter your PayPal Secret Key for sandbox mode.', 'wp-express-checkout' ),
-				'size'  => 100,
 			)
 		);
 
@@ -460,6 +464,22 @@ class Admin {
 			)
 		);
 
+		// Language section.
+		add_settings_field( 'default_locale',
+			__( 'Default Locale (Optional)', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-pp-btn-appearance', 'ppdg-paypal-language', array(
+			'field' => 'default_locale',
+			'type'  => 'text',
+			'class' => '',
+			'size' => 20,
+			'desc'  => '<div>
+							<p>'. esc_html__("Pass a locale code (e.g, en_US, de_DE, es_ES, ja_JP, pt_BR, ar_EG) to PayPal to customize the locale of the buyer's checkout experience. Leave empty to let PayPal automatically detect the locale.", 'wp-express-checkout').'</p>
+							<p>'. esc_html__("See the list of supported codes: ", 'wp-express-checkout').'
+							<a href="https://developer.paypal.com/api/rest/reference/locale-codes/#link-supportedlocalecodes" target="_blank">'.esc_html__('here', 'wp-express-checkout').'</a></p>
+						</div>',
+		) );
+
 		/***********************/
 		/* Email Settings Menu Tab */
 		/***********************/
@@ -502,12 +522,7 @@ class Admin {
 		add_settings_field( 'send_buyer_email', __( 'Send Emails to Buyer After Purchase', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-emails', 'ppdg-emails-section', array( 'field' => 'send_buyer_email', 'type' => 'checkbox', 'desc' => __( 'If checked the plugin will send an email to the buyer with the sale details. If digital goods are purchased then the email will contain the download links for the purchased products.', 'wp-express-checkout' ) ) );
 		add_settings_field( 'buyer_email_subj', __( 'Buyer Email Subject', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-emails', 'ppdg-emails-section', array( 'field' => 'buyer_email_subj', 'type' => 'text', 'desc' => __( 'This is the subject of the email that will be sent to the buyer.', 'wp-express-checkout' ) ) );
 
-		$tags = Utils::get_dynamic_tags_white_list();
-		$tags_desc = '';
-
-		foreach ( $tags as $tag => $desc ) {
-			$tags_desc .= "<br /><code>{{$tag}}</code> - {$desc}";
-		}
+		$tags_desc = Utils::get_tags_desc(Utils::get_dynamic_tags_white_list());
 
 		add_settings_field( 'buyer_email_body', __( 'Buyer Email Body', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-emails', 'ppdg-emails-section', array( 'field' => 'buyer_email_body', 'type' => 'html' === $wpec->get_setting( 'buyer_email_type' ) ? 'editor' : 'textarea', 'desc' => ''
 			. __( 'This is the body of the email that will be sent to the buyer. Do not change the text within the braces {}. You can use the following email tags in this email body field:', 'wp-express-checkout' )
@@ -520,6 +535,122 @@ class Admin {
 			. __( 'This is the body of the email that will be sent to the seller for record. Do not change the text within the braces {}. You can use the following email tags in this email body field:', 'wp-express-checkout' )
 			. $tags_desc,
 		) );
+
+		/****************************/
+		/* Manual Checkout Menu Tab */
+		/****************************/
+
+		$mc_tags_desc = Utils::get_tags_desc(Utils::get_dynamic_tags_white_list_for_manual_checkout());
+
+		$manual_checkout_description = '<p>' . __( 'Select this option to enable manual or offline checkout.', 'wp-express-checkout' );
+		$manual_checkout_description .= ' ' . '<a href="https://wp-express-checkout.com/how-to-use-manual-offline-checkout-in-wp-express-checkout/" target="_blank">'. __('Read the documentation', 'wp-express-checkout') . '</a>.' . '</p>';
+		add_settings_field( 'enable_manual_checkout',
+			__( 'Enable Manual Checkout', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'enable_manual_checkout',
+				'type'  => 'checkbox',
+				'class' => '',
+				'desc'  => sprintf( $manual_checkout_description ),
+			) );
+
+		add_settings_field( 'manual_checkout_btn_text',
+			__( 'Manual Checkout Button Text', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_btn_text',
+				'type'  => 'text',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("Customize the manual checkout button text. The default text is 'Proceed to Manual Checkout'.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_instructions',
+			__( 'Manual Checkout Instructions on Checkout Form', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_instructions',
+				'type'  => 'editor',
+				'desc'  => '<p>'. esc_html__("Add manual checkout instructions here to display them above the form.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_hide_country_field',
+			__( 'Hide Country Field', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_hide_country_field',
+				'type'  => 'checkbox',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("Check this if you don't want to show the country field in the address section of manual checkout form.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'enable_manual_checkout_buyer_instruction_email',
+			__( 'Send Manual Checkout Payment Instructions to Buyer via Email', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'enable_manual_checkout_buyer_instruction_email',
+				'type'  => 'checkbox',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("If enabled, the plugin will send an email to the buyer after completing a manual checkout.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_buyer_instruction_email_subject',
+			__( 'Payment Instruction Email Subject', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_buyer_instruction_email_subject',
+				'type'  => 'text',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("This is the subject line for the email sent to the buyer.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_buyer_instruction_email_body',
+			__( 'Payment Instruction Email Body', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_buyer_instruction_email_body',
+				'type'  => 'editor',
+				'desc'  => '<p>'. esc_html__("This is the body of the email that will be sent. Do not change the text within the braces {}. You can use the following email tags in this email body field:", 'wp-express-checkout'). $mc_tags_desc .'</p>',
+			) );
+
+
+		add_settings_field( 'enable_manual_checkout_seller_notification_email',
+			__( 'Send Manual Checkout Notification to Seller via Email', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'enable_manual_checkout_seller_notification_email',
+				'type'  => 'checkbox',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("If checked, the plugin will send an email to the seller after a manual checkout.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_seller_notification_email_address',
+			__( 'Manual Checkout Notification Email Address', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_seller_notification_email_address',
+				'type'  => 'email',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("The email address for receiving manual checkout notifications. If left empty, the email address from the 'Email Settings' menu will be used.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_seller_notification_email_subject',
+			__( 'Notification Email Subject', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_seller_notification_email_subject',
+				'type'  => 'text',
+				'class' => '',
+				'desc'  => '<p>'. esc_html__("This is the subject of the email that will be sent to the seller.", 'wp-express-checkout').'</p>',
+			) );
+
+		add_settings_field( 'manual_checkout_seller_notification_email_body',
+			__( 'Payment Instruction Email Body', 'wp-express-checkout' ),
+			array( $this, 'settings_field_callback' ),
+			$this->plugin_slug . '-manual-checkout', 'wpec-manual-checkout-section', array(
+				'field' => 'manual_checkout_seller_notification_email_body',
+				'type'  => 'editor',
+				'desc'  => '<p>'. esc_html__("This is the body of the email that will be sent. Do not change the text within the braces {}. You can use the following email tags in this email body field:", 'wp-express-checkout'). $mc_tags_desc .'</p>',
+			) );
 
 		/******************************/
 		/* Advanced Settings Menu Tab */

@@ -3,8 +3,8 @@ Contributors: Tips and Tricks HQ, mra13, dikiy_forester, mbrsolution, Ivy2120, c
 Donate link: https://wp-express-checkout.com/
 Tags: paypal, payment, digital store, ecommerce, sell
 Requires at least: 6.0
-Tested up to: 6.7
-Stable tag: 2.4.0
+Tested up to: 6.8
+Stable tag: 2.4.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,11 @@ This plugin works with PayPal's Pay in 4 (Buy Now, Pay Later) feature also. It l
 
 = Basic Setup and Usage Video =
 
-https://www.youtube.com/watch?v=RHVgGQWhCT0
+https://www.youtube.com/watch?v=UIUvpYGYuiU
+
+https://www.youtube.com/watch?v=YP9E12KDo1A
+
+https://www.youtube.com/watch?v=n9YDFVFHDf8
 
 = Usage Documentation =
 
@@ -80,6 +84,7 @@ View configuration and usage details on the [WP Express Checkout](https://wp-exp
 * Ability to configure the download links to expire after X number of hours.
 * Ability to configure the download links to expire after X number of clicks.
 * Option to test it on PayPal Sandbox mode before going Live.
+* Option to use [manual/offline checkout](https://wp-express-checkout.com/how-to-use-manual-offline-checkout-in-wp-express-checkout/)
 * Option to [Integrate it with WooCommerce](https://wp-express-checkout.com/woocommerce-paypal-express-checkout/) to offer product checkout via PayPal's express checkout system.
 
 The setup is very easy. Once you have installed the plugin, all you need to do is enter your PayPal Checkout API credentials in the plugin settings and your website will be ready to accept PayPal and credit card payments.
@@ -165,6 +170,21 @@ https://wp-express-checkout.com/
 None
 
 == Changelog ==
+
+= 2.4.1 =
+* New manual/offline checkout feature added.
+* Added option to hide the country field in manual checkout form address section.
+* Added phone field to manual checkout form address section.
+* Added the new video tutorial link to the readme file.
+* For new installations, the default button height is set to medium for optimal results.
+* For new installations, the default button width is set to 300px for optimal results.
+* Updated the Spanish translation file.
+* Settings menu UI improvements for the 'Thank you' and 'Shop' page URL fields.
+* Updated the help text of the 'Thank You' page settings field.
+* Two new action hook 'wpec_before_full_discount_checkout_button' and 'wpec_process_payment' added.
+* Now order data can be edited form order details page.
+* New settings added to set default locale for paypal checkout popup.
+* Spelling corrections and improvements.
 
 = 2.4.0 =
 * Added a dedicated settings tab for PayPal, consolidating all PayPal-related settings in one place for easier management.

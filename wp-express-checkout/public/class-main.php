@@ -151,6 +151,11 @@ class Main {
 			}
 		}
 
+        $locale = \WP_Express_Checkout\Utils::get_paypal_checkout_locale_code();
+        if (!empty($locale)){
+            $args['locale'] = $locale;
+        }
+
 		/**
 		 * Filters arguments to be passed to PayPal SDK.
 		 *
@@ -361,12 +366,13 @@ class Main {
 			'tax'                  => '',
 			'button_text'          => __( 'Pay', 'wp-express-checkout' ),
 			'use_modal'            => 1,
-			'btn_shape'            => 'pill',
-			'btn_color'            => 'gold',
+			'btn_shape'            => 'rect',
+			'btn_color'            => 'blue',
 			'btn_type'             => 'checkout',
-			'btn_height'           => 'xlarge',
-			'btn_width'            => 0,
+			'btn_height'           => 'medium', /* use a default height of medium for best results */
+			'btn_width'            => 300, /* use a default width of 300px for best results */
 			'btn_layout'           => 'vertical',
+			'default_locale'       => '',
 			'disabled_funding'     => array( 'card' ),
 			'disabled_cards'       => array(),
 			'enable_debug_logging' => 0,
@@ -396,6 +402,26 @@ class Main {
 			'download_method'       => '1',
 			'download_url_conversion_preference' => 'absolute',
 			'access_permission'    => 'manage_options',
+			'enable_manual_checkout' => '',
+			'manual_checkout_btn_text' => '',
+			'manual_checkout_instructions' => '',
+			'manual_checkout_hide_country_field' => '',
+            'enable_manual_checkout_buyer_instruction_email' => '',
+            'manual_checkout_buyer_instruction_email_subject' => 'Manual payment instruction',
+            'manual_checkout_buyer_instruction_email_body' => "Dear {first_name}\n"
+                                                            ."\nThank you for your purchase. Please follow the instructions below to complete your payment.\n"
+                                                            ."\nKindly transfer the amount of {purchase_amt} to the following bank account:"
+                                                            ."\nAccount Number: XXXX-XXXX-XXXX-XXXX"
+                                                            ."\n\nOnce the payment is made, please let us know."
+                                                            ."\n\nThanks",
+            'enable_manual_checkout_seller_notification_email' => '',
+            'manual_checkout_seller_notification_email_address' => '',
+            'manual_checkout_seller_notification_email_subject' => 'Notification of manual checkout',
+            'manual_checkout_seller_notification_email_body' => "Dear Seller\n"
+                                                            ."\nA new sale has been completed via manual checkout."
+                                                            ."\nTransaction ID: {transaction_id}"
+                                                            ."\n\nPlease review the order details in your dashboard."
+                                                            ."\n\nThanks",
 		);
 
 		return apply_filters( 'wpec_settings_defaults', $defaults );

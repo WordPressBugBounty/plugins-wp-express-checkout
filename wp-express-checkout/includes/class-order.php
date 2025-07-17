@@ -410,6 +410,7 @@ class Order {
 	 */
 	public function get_display_status() {
 		$statuses = array(
+			'pending' => '<span class="wpec_status_pending">' . __( 'Pending', 'wp-express-checkout' ) . '</span>',
 			'incomplete' => '<span class="wpec_status_incomplete">' . __( 'Incomplete', 'wp-express-checkout' ) . '</span>',
 			'paid'       => '<span class="wpec_status_paid">' . __( 'Paid', 'wp-express-checkout' ) . '</span>',
 			'refunded'   => '<span class="wpec_status_refunded">' . __( 'Refunded', 'wp-express-checkout' ) . '</span>',
@@ -750,9 +751,32 @@ class Order {
 
 			// The 'shipping_address' index usually in array formant. If so, convert it to string.
 			$payer_shipping_data = $payer_data['shipping_address'];
-			return is_array($payer_shipping_data) ? implode( ', ', $payer_shipping_data ) : $payer_shipping_data;
+			return is_array($payer_shipping_data) ? implode( ', ', array_filter($payer_shipping_data) ) : $payer_shipping_data;
 		}
 
 		return '';
+	}
+
+	public function get_billing_address() {
+		// Check if 'billing_address' is present inside payment data array.
+		if(array_key_exists('billing_address', $this->data)){
+			return $this->data['billing_address'];
+		}
+
+		$payer_data = $this->get_data( 'payer' );
+
+		// Check if the shipping_address is present inside 'payer' data. (Usually for the case of subscription/100% discount payment)
+		if ( isset( $payer_data['address'] ) && ! empty( $payer_data['address'] )) {
+			// The 'address' index usually in array formant. If so, convert it to string.
+			return is_array($payer_data['address']) ? implode( ', ', array_filter($payer_data['address']) ) : $payer_data['address'];
+		}
+
+		return '';
+	}
+
+	public function get_phone(){
+		$payer = $this->get_data( 'payer' );
+
+		return isset($payer['phone']) && !empty($payer['phone']) ? $payer['phone'] : '';
 	}
 }

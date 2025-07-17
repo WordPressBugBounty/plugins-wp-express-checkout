@@ -95,6 +95,33 @@
 }
 /* End CSS boxes */
 
+/* Misc admin interface styles */
+#wp-ppdg-thank_you_url, #wp-ppdg-shop_page_url{
+	width: 400px;
+}
+#wp-ppdg-live_client_id, #wp-ppdg-live_secret_key, #wp-ppdg-sandbox_client_id, #wp-ppdg-sandbox_secret_key {
+	width: 90%;
+}
+@media only screen and (max-width: 782px){
+	#wp-ppdg-thank_you_url, #wp-ppdg-shop_page_url{
+		width: 100%;
+	}
+	#wp-ppdg-live_client_id, #wp-ppdg-live_secret_key, #wp-ppdg-sandbox_client_id, #wp-ppdg-sandbox_secret_key {
+		width: 100%;
+	}
+}
+/* end of misc admin interface styles */
+
+.wpec_status_pending{
+	padding: 7px 15px;
+	width: auto;
+	display: inline-block;
+	text-align: center;
+	min-width: 80px;
+	border-radius: 5px;
+	background-color: #FFF6D5;
+}
+
 .wpec_status_paid{
 	padding: 7px 15px;
 	width: auto;

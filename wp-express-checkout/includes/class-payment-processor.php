@@ -230,6 +230,14 @@ class Payment_Processor {
 			$this->send_error( __( 'Error! Nonce value is missing in the URL or Nonce verification failed.', 'wp-express-checkout' ), 3003 );
 		}
 
+		/**
+		 * Runs before processing anything.
+		 *
+		 * @param array $payment The raw order data retrieved via API.
+		 * @param array $data    The purchase data generated on a client side.
+		 */
+		do_action('wpec_process_payment', $payment, $data);
+
 		$this->check_status( $payment );
 
 		// Log debug (if enabled).
@@ -324,7 +332,9 @@ class Payment_Processor {
 
 		// If code execution got this far, it means everything is ok with payment
 		// let's insert order.
-		$order->set_status( 'paid' );
+		$order_status = apply_filters( 'wpec_create_order_final_status', 'paid');
+
+		$order->set_status( $order_status );
 
 		$product->update_stock_items( $quantity );
 

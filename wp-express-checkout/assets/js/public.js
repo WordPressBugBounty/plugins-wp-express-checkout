@@ -1,4 +1,4 @@
-var ppecHandler = function( data ) {	
+var ppecHandler = function( data ) {
 	this.data = data;
 	this.actions = {};
 
@@ -39,7 +39,8 @@ var ppecHandler = function( data ) {
 		dialog.title = dlgTitle;
 		dialog.appendChild(dialogMsgParagraph);
 
-		document.getElementById(parent.data.id)?.insertAdjacentElement('beforebegin', dialog);
+		parent.scCont?.querySelector('.wp-ppec-button-container')?.insertAdjacentElement('afterend', dialog);
+
 		// Fade in dialog
 		dialog.style.display = 'none';
 		dialog.style.opacity = 0;
@@ -160,8 +161,13 @@ var ppecHandler = function( data ) {
 
 		parent.updateAllAmounts();
 
-		// TODO: Need to convert this to vanilla js
-		jQuery( document ).trigger( 'wpec_validate_order', [ parent ] );
+		// Dispatch a custom event for addons to listen on 'validateOrder' function run.
+		document.dispatchEvent(new CustomEvent('wpec_validate_order', {
+			detail: {
+				ppecHandler: parent
+			}
+		}))
+		jQuery( document ).trigger( 'wpec_validate_order', [ parent ] ); // TODO: Need to remove this jquery version after all addon code is updated to the vanilla version.
 	};
 
 	this.displayInputError = function( input, validator ) {
@@ -383,7 +389,7 @@ var ppecHandler = function( data ) {
 					country_code: document.getElementById( 'wpec_shipping_country-' + parent.data.id )?.value,
 				};
 
-				parent.processPayment( {
+				const paymentData = {
 					payer: {
 						name: {
 							given_name: document.getElementById( 'wpec_billing_first_name-' + parent.data.id )?.value,
@@ -393,7 +399,16 @@ var ppecHandler = function( data ) {
 						address: billing_address,
 						shipping_address: shipping_address,
 					}
-				}, 'wpec_process_empty_payment' );
+				}
+
+				document.dispatchEvent(new CustomEvent('wpec_process_free_payment', {
+					detail: {
+						paymentData,
+						data: parent.data,
+					}
+				}));
+
+				parent.processPayment(paymentData, 'wpec_process_empty_payment' );
 			}
 		},
 		createOrder: async function( data, actions ) {
@@ -769,6 +784,11 @@ var ppecHandler = function( data ) {
 	jQuery( document ).trigger( 'wpec_before_render_button', [ this ] );
 
 	paypal.Buttons( this.buttonArgs ).render( '#' + parent.data.id );
+
+	// Handle manual checkout functionality if enabled.
+	if (Boolean(parent.data.is_manual_checkout_enabled)){
+		new WpecManualCheckout(parent);
+	}
 };
 
 const wpecModal = function( $ ) {
@@ -820,3 +840,159 @@ const wpecModal = function( $ ) {
 };
 
 jQuery( wpecModal );
+
+class WpecManualCheckout {
+
+	constructor(parent) {
+		this.parent = parent;
+		this.buttonId = parent.data.id;
+		this.mcProceedBtn = document.getElementById('wpec-proceed-manual-checkout-'+ this.buttonId);
+		this.mcForm = document.getElementById( 'wpec-manual-checkout-form-' + this.buttonId );
+
+		this.tosCheckbox = document.getElementById( 'wpec-tos-' + this.buttonId );
+		this.customQuantityInput = document.querySelector( '#wp-ppec-custom-quantity[data-ppec-button-id="' + this.buttonId + '"]' );
+		this.customAmountInput = document.querySelector( '#wp-ppec-custom-amount[data-ppec-button-id="' + this.buttonId + '"]' );
+
+		document.addEventListener('wpec_validate_order', (e) => {
+			this.parent.toggleVisibility(
+				document.getElementById( 'wpec-manual-checkout-section-'+ this.buttonId ),
+				'block',
+				!this.parent.isElementVisible(document.getElementById( 'place-order-' + parent.data.id ))
+			);
+		})
+
+		this.init();
+	}
+
+	init(){
+		this.mcForm?.querySelector( '.wpec_same_billing_shipping_enable' )?.addEventListener( 'change', () => {
+			const wpec_address_wrap = this.mcForm?.querySelector( '.wpec_address_wrap' );
+			this.parent.toggleVisibility(wpec_address_wrap?.querySelector( '.wpec_shipping_address_container' ), 'inherit');
+			this.mcForm?.querySelector( '.wpec_address_wrap' )?.classList.toggle('shipping_enabled');
+		} );
+
+		this.parent.validateInput( this.tosCheckbox, this.parent.ValidatorTos );
+		this.parent.validateInput( this.customQuantityInput, this.parent.ValidatorQuantity );
+		this.parent.validateInput( this.customAmountInput, this.parent.ValidatorAmount );
+		this.mcForm?.querySelectorAll( '.wpec_required' ).forEach( (element) => {
+			this.parent.validateInput( element, this.parent.ValidatorBilling );
+		} );
+
+		this.mcForm?.addEventListener('submit', (e) => {
+			e.preventDefault();
+
+			const form = e.target;
+			form.setAttribute("disabled", true);
+
+			const formData = new FormData(form);
+
+			this.parent.displayErrors();
+
+			const mcFormSubmitBtn = form.querySelector('button.wpec-place-order-btn');
+			if (mcFormSubmitBtn){
+				mcFormSubmitBtn.querySelector("svg").style.display = 'inline';
+				mcFormSubmitBtn.setAttribute("disabled", true);
+			}
+
+			// Get first error input if there is any.
+			const errInput = this.getErrorInput();
+
+			if ( errInput ) {
+				errInput.focus();
+				errInput.dispatchEvent( new Event('change') );
+
+				form.removeAttribute("disabled");
+				if (mcFormSubmitBtn) {
+					mcFormSubmitBtn.querySelector("svg").style.display = 'none';
+					mcFormSubmitBtn.removeAttribute("disabled");
+				}
+
+				// Don't continue form submission.
+				return;
+			}
+
+			const billing_address = {
+				address_line_1: formData.get('wpec_billing_address'),
+				admin_area_1: formData.get('wpec_billing_city'),
+				admin_area_2: formData.get('wpec_billing_country'),
+				postal_code: formData.get('wpec_billing_state'),
+				country_code: formData.get('wpec_billing_postal_code'),
+			};
+			const shipping_address = formData.get('wpec_same_billing_shipping_enable') ? billing_address : {
+				address_line_1: formData.get('wpec_shipping_address'),
+				admin_area_1: formData.get('wpec_shipping_city'),
+				admin_area_2: formData.get('wpec_shipping_country'),
+				postal_code: formData.get('wpec_shipping_state'),
+				country_code: formData.get('wpec_shipping_postal_code'),
+			};
+
+			const paymentData = {
+				payer: {
+					name: {
+						given_name: formData.get('wpec_billing_first_name'),
+						surname: formData.get('wpec_billing_last_name'),
+					},
+					email_address: formData.get('wpec_billing_email'),
+					phone: formData.get('wpec_billing_phone'),
+					address: billing_address,
+					shipping_address: shipping_address,
+				}
+			}
+
+			document.dispatchEvent(new CustomEvent('wpec_process_manual_checkout', {
+				detail: {
+					paymentData,
+					data: this.parent.data,
+				}
+			}));
+
+			this.parent.processPayment(paymentData, 'wpec_process_manual_checkout' );
+		} );
+
+		this.mcForm?.addEventListener('reset', (e)=>{
+			const form = e.target;
+			form.removeAttribute("disabled");
+			const mcFormSubmitBtn = form.querySelector('button.wpec-place-order-btn');
+			if (mcFormSubmitBtn){
+				mcFormSubmitBtn.querySelector("svg").style.display = 'none';
+				mcFormSubmitBtn.removeAttribute("disabled");
+			}
+
+			this.toggleManualCheckout();
+		})
+
+		this.mcProceedBtn?.addEventListener('click',  (e) =>{
+			this.toggleManualCheckout();
+		});
+	}
+
+	getErrorInput(){
+		if (this.tosCheckbox?.classList.contains('hasError')){
+			return this.tosCheckbox;
+		} else if (this.customQuantityInput?.classList.contains('hasError')){
+			return this.customQuantityInput;
+		} else if (this.customAmountInput?.classList.contains('hasError')){
+			return this.customAmountInput;
+		} else {
+			return this.mcForm?.querySelector( '.hasError' );
+		}
+	}
+
+	toggleManualCheckout(){
+		this.parent.toggleVisibility(this.mcForm, 'inherit');
+		this.parent.toggleVisibility(this.mcProceedBtn, 'inherit');
+
+		// Toggle paypal btn
+		// this.parent.toggleVisibility(
+		// 	document.getElementById(this.buttonId),
+		// 	'inherit',
+		// 	!this.parent.isElementVisible(this.mcForm)
+		// );
+
+		document.dispatchEvent(new CustomEvent('wpec_toggle_manual_checkout_form', {
+			detail: {
+				wpecManualCheckout: this
+			}
+		}));
+	}
+}
