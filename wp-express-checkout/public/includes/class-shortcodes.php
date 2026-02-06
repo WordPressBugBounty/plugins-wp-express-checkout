@@ -20,6 +20,8 @@ class Shortcodes {
 	protected static $instance        = null;
 	protected static $payment_buttons = array();
 
+    protected static $shortcode_count = 0;
+
 	function __construct() {
 		$this->ppdg = Main::get_instance();
 
@@ -59,7 +61,7 @@ class Shortcodes {
 	 *
 	 * @since     1.0.0
 	 *
-	 * @return    object    A single instance of this class.
+	 * @return    Shortcodes    A single instance of this class.
 	 */
 	public static function get_instance() {
 
@@ -71,7 +73,7 @@ class Shortcodes {
 		return self::$instance;
 	}
 
-	private function show_err_msg( $msg, $code = 0 ) {
+	public function show_err_msg( $msg, $code = 0 ) {
 		return sprintf( '<div class="wpec-error-message wpec-error-message-' . esc_attr( $code ) . '">%s</div>', $msg );
 	}
 
@@ -98,9 +100,6 @@ class Shortcodes {
 		$url             = $product->get_download_url();
 		$button_text     = isset( $atts['button_text'] ) ? $atts['button_text'] : $product->get_button_text();
 		$thank_you_url   = ! empty( $atts['thank_you_url'] ) ? $atts['thank_you_url'] : $product->get_thank_you_url();
-		$btn_type        = $product->get_button_type();
-		$btn_sizes       = array( 'small' => 25, 'medium' => 35, 'large' => 45, 'xlarge' => 55 );
-		$btn_height      = $this->ppdg->get_setting( 'btn_height' );
 
 		$output = '';
 
@@ -137,14 +136,9 @@ class Shortcodes {
 				'custom_amount'   => 0,
 				'custom_quantity' => 0,
 				'currency'        => $this->ppdg->get_setting( 'currency_code' ), // Maybe useless option, the shortcode doesn't send this parameter.
-				'btn_shape'       => $this->ppdg->get_setting( 'btn_shape' ),
-				'btn_type'        => $btn_type ? $btn_type : $this->ppdg->get_setting( 'btn_type' ),
-				'btn_height'      => ! empty( $btn_sizes[ $btn_height ] ) ? $btn_sizes[ $btn_height ] : 25,
 				'btn_width'       => $this->ppdg->get_setting( 'btn_width' ) !== false ? $this->ppdg->get_setting( 'btn_width' ) : 0,
-				'btn_layout'      => $this->ppdg->get_setting( 'btn_layout' ),
-				'btn_color'       => $this->ppdg->get_setting( 'btn_color' ),
 				'coupons_enabled' => $this->ppdg->get_setting( 'coupons_enabled' ),
-				'button_text'     => $button_text ? $button_text : $this->ppdg->get_setting( 'button_text' ),
+				'button_text'     => $button_text ? $button_text : $this->ppdg->get_setting( 'button_text' ), // modal trigger button text
 				'use_modal'       => ! isset( $atts['modal'] ) ? $this->ppdg->get_setting( 'use_modal' ) : $atts['modal'],
 				'thank_you_url'   => $thank_you_url ? $thank_you_url : $this->ppdg->get_setting( 'thank_you_url' ),
 				'variations'      => array(),
@@ -161,7 +155,7 @@ class Shortcodes {
 		$GLOBALS['post'] = $post;
 		setup_postdata( $post );
 		$post->post_content = strip_shortcodes( $post->post_content );
-		$wp_query->set( 'wpec_button_args', $args );
+		$wp_query->set( 'wpec_sc_args', $args );
 		if ( $located ) {
 			ob_start();
 			load_template( $located, false );
@@ -175,22 +169,22 @@ class Shortcodes {
 		}
 		wp_reset_postdata();
 
+		self::$shortcode_count++;
+
 		return $output;
 	}
 
-	function generate_pp_express_checkout_button( $args ) {
+	public function generate_express_checkout_buttons( $sc_args ) {
 
-		extract( $args );
+		extract( $sc_args );
 
 		if ( $stock_enabled && empty( $stock_items ) ) {
 			return '<div class="wpec-out-of-stock">' . esc_html( 'Out of stock', 'wp-express-checkout' ) . '</div>';
 		}
 
+		$shortcode_count = self::$shortcode_count;
+
 		// The button ID.
-		$button_id = 'paypal_button_' . count( self::$payment_buttons );
-
-		self::$payment_buttons[] = $button_id;
-
 		$trans_name = 'wp-ppdg-' . sanitize_title_with_dashes( $name ); // Create key using the item name.
 
 		$trans_data = array(
@@ -211,45 +205,18 @@ class Shortcodes {
 
 		set_transient( $trans_name, $trans_data, WEEK_IN_SECONDS );
 
-		$is_live = $this->ppdg->get_setting( 'is_live' );
+		/**
+         * This is used for certain DOM elements referencing for uniquely targeting them in javascript.
+         *
+		 * In the previous when there was only the PayPal as the gateway, the PayPal button id were used for various dom element unique ids
+		 * as well as for the actual PayPal buttons. Now this shortcode id is being used for referencing unique dom elements and the payment
+		 * gateway buttons has their own ids as well.
+		 */
+        $shortcode_id = 'wp_express_checkout_' . $shortcode_count;
 
-		if ( $is_live ) {
-			$env       = 'production';
-			$client_id = $this->ppdg->get_setting( 'live_client_id' );
-		} else {
-			$env       = 'sandbox';
-			$client_id = $this->ppdg->get_setting( 'sandbox_client_id' );
-		}
-
-		if ( empty( $client_id ) ) {
-			$err_msg = sprintf( __( "Please enter %s Client ID in the settings.", 'wp-express-checkout' ), $env );
-			$err     = $this->show_err_msg( $err_msg, 'client-id' );
-			return $err;
-		}
-
-		$output  = '';
-		$located = self::locate_template( 'payment-form.php' );
-
-		if ( $located ) {
-			ob_start();
-			require $located;
-			$output = ob_get_clean();
-		}
-
-		$modal = self::locate_template( 'modal.php' );
-
-		if ( $modal && $use_modal ) {
-			$modal_title = apply_filters( 'wpec_modal_window_title', get_the_title( $product_id ), $args );
-			ob_start();
-			require $modal;
-			$output = ob_get_clean();
-		}
-
-		$data = apply_filters( 'wpec_button_js_data', array(
-			'id'              => $button_id,
-			'nonce'           => wp_create_nonce( $button_id . $product_id ),
-			'env'             => $env,
-			'client_id'       => $client_id,
+		$wpec_js_data = array(
+			'id'              => $shortcode_id,
+            'nonce'           => wp_create_nonce($shortcode_id . $product_id),
 			'price'           => $price,
 			'quantity'        => $quantity,
 			'tax'             => $tax,
@@ -271,6 +238,109 @@ class Shortcodes {
 			'stock_enabled'   => $stock_enabled,
 			'stock_items'     => $stock_items,
 			'variations'      => $variations,
+		);
+        $wpec_js_data = apply_filters('wpec_js_data', $wpec_js_data, $sc_args);
+
+		$product = Products::retrieve($product_id);
+		$product_type = $product->get_type();
+
+        $buttons_script = '';
+
+		/**
+		 * For PayPal
+		 */
+        $is_paypal_checkout_enabled = Main::get_instance()->get_setting('enable_paypal_checkout');
+        if (!empty($is_paypal_checkout_enabled)){
+            $paypal_button_id = 'paypal_button_' . $shortcode_count;
+	        $buttons_script .= $this->generate_pp_express_checkout_button($paypal_button_id, $sc_args, $shortcode_id);
+        }
+
+		/**
+		 * For Stripe
+		 */
+		$is_stripe_checkout_enabled = Main::get_instance()->get_setting('enable_stripe_checkout');
+		$is_stripe_checkout_enabled = apply_filters('wpec_show_stripe_checkout_option_backward_compatible', $is_stripe_checkout_enabled, $product_type);  // TODO: For addon backward compatibility.
+        if (!empty($is_stripe_checkout_enabled)){
+            $stripe_button_id = 'stripe_button_' . $shortcode_count;
+            $buttons_script .= $this->generate_stripe_express_checkout_button($stripe_button_id, $sc_args, $shortcode_id);
+        }
+
+		/**
+		 * For Manual Checkout
+		 */
+        $is_manual_checkout_enabled = Main::get_instance()->get_setting('enable_manual_checkout');
+        if (!empty($is_manual_checkout_enabled) && $product_type != 'subscription'){
+            $manual_checkout_button_id = 'manual_checkout_button_' . $shortcode_count;
+	        $buttons_script .= $this->generate_manual_checkout_button($manual_checkout_button_id, $sc_args, $shortcode_id);
+        }
+
+
+		$output  = '';
+
+		$located = self::locate_template( 'payment-form.php' );
+		if ( $located ) {
+			ob_start();
+			require $located;
+			$output = ob_get_clean();
+		}
+
+		$modal = self::locate_template( 'modal.php' );
+
+		if ( $modal && $use_modal ) {
+			$modal_title = apply_filters( 'wpec_modal_window_title', get_the_title( $product_id ), $sc_args );
+			ob_start();
+			require $modal;
+			$output = ob_get_clean();
+		}
+
+		ob_start();
+		?>
+        <script type="text/javascript">
+            document.addEventListener( "DOMContentLoaded", function() {
+                window['<?php echo esc_js($shortcode_id) ?>'] = new ppecHandler(<?php echo json_encode($wpec_js_data) ?>);
+            });
+        </script>
+		<?php
+		$output .= ob_get_clean();
+
+        $output .= $buttons_script;
+
+		return $output;
+	}
+
+	public function generate_pp_express_checkout_button($button_id, $sc_args, $sc_id ) {
+		$btn_height = $this->ppdg->get_setting( 'btn_height' );
+		$btn_sizes = array( 'small' => 25, 'medium' => 35, 'large' => 45, 'xlarge' => 55 );
+        $btn_type = get_post_meta($sc_args['product_id'], 'wpec_product_button_type', true);
+
+		$btn_height = ! empty( $btn_sizes[ $btn_height ] ) ? $btn_sizes[ $btn_height ] : 25;
+		$btn_shape = $this->ppdg->get_setting( 'btn_shape' );
+		$btn_type = !empty($btn_type) ? $btn_type : $this->ppdg->get_setting( 'btn_type' );
+		$btn_color = $this->ppdg->get_setting( 'btn_color' );
+		$btn_layout = $this->ppdg->get_setting( 'btn_layout' );
+
+		$is_live = Main::get_instance()->get_setting( 'is_live' );
+
+		if ( $is_live ) {
+			$env       = 'production';
+			$client_id = Main::get_instance()->get_setting( 'live_client_id' );
+		} else {
+			$env       = 'sandbox';
+			$client_id = Main::get_instance()->get_setting( 'sandbox_client_id' );
+		}
+
+		if ( empty( $client_id ) ) {
+			$err_msg = sprintf( __( "Please enter %s Client ID in the settings.", 'wp-express-checkout' ), $env );
+			$err     = $this->show_err_msg( $err_msg, 'client-id' );
+			return $err;
+		}
+
+		$output  = '';
+
+		$data = apply_filters( 'wpec_button_js_data', array(
+			'id'              => $button_id,
+			'env'             => $env,
+			'client_id'       => $client_id,
 			'btnStyle'        => array(
 				'height' => $btn_height,
 				'shape'  => $btn_shape,
@@ -278,15 +348,90 @@ class Shortcodes {
 				'color'  => $btn_color,
 				'layout' => $btn_layout,
 			),
-			'is_manual_checkout_enabled' => !empty($this->ppdg->get_setting('enable_manual_checkout')),
+
+            'product_id' => $sc_args['product_id'], // TODO: For addon backward compatibility.
 		) );
 
-		$output .= '<script type="text/javascript">var wpec_' . esc_attr( $button_id ) . '_data=' . json_encode( $data ) . ';document.addEventListener( "wpec_paypal_sdk_loaded", function() { new ppecHandler(wpec_' . esc_attr( $button_id ) . '_data); } );</script>';
+        ob_start();
+        ?>
+        <script type="text/javascript">
+            document.addEventListener( "wpec_paypal_sdk_loaded", function() {
+                new WPECPayPalHandler(<?php echo json_encode($data) ?>, window['<?php echo esc_js($sc_id) ?>']);
+            });
+        </script>
+        <?php
+        $output .= ob_get_clean();
 
-		add_action( 'wp_footer', array( $this->ppdg, 'load_paypal_sdk' ) );
+		add_action( 'wp_footer', array( Main::get_instance(), 'load_paypal_sdk' ) );
 
 		return $output;
 	}
+
+	public function generate_stripe_express_checkout_button($button_id, $sc_args, $sc_id ) {
+		$btn_shape = Main::get_instance()->get_setting( 'stripe_btn_shape' );
+		$btn_height = Main::get_instance()->get_setting( 'stripe_btn_height' );
+		$btn_width = Main::get_instance()->get_setting( 'stripe_btn_width' );
+		$btn_color = Main::get_instance()->get_setting( 'stripe_btn_color' );
+		$btn_text = Main::get_instance()->get_setting( 'stripe_btn_text' );
+
+		$btn_classes_array = array('wpec-stripe-btn');
+		$btn_classes_array[] = 'wpec-stripe-btn-' . $btn_shape;
+		$btn_classes_array[] = 'wpec-stripe-btn-color-' . $btn_color;
+		$btn_classes_array[] = 'wpec-stripe-btn-height-' . $btn_height;
+
+		$data = array(
+			'id'        => $button_id,
+			'btnStyle'    => array(
+				'shape'  => $btn_shape,
+				'height' => $btn_height,
+				'width'  => $btn_width,
+				'color'  => $btn_color,
+				'label'  => $btn_text,
+			),
+			'btn_classes' => apply_filters( 'wpec-stripe-btn-classes', $btn_classes_array ),
+		);
+        $data = apply_filters( 'wpec_stripe_button_js_data', $data);
+
+		$output = '';
+
+		ob_start();
+		?>
+        <script type="text/javascript">
+            document.addEventListener( "DOMContentLoaded", function() {
+                new WPECStripeHandler(<?php echo json_encode($data) ?>, window['<?php echo esc_js($sc_id) ?>']);
+            });
+        </script>
+		<?php
+		$output .= ob_get_clean();
+
+		return $output;
+	}
+
+    public function generate_manual_checkout_button($button_id, $sc_args, $sc_id ) {
+	    $btn_text = Main::get_instance()->get_setting( 'manual_checkout_btn_text' );
+
+	    $data = array(
+		    'id'        => $button_id,
+		    'btnStyle'    => array(
+			    'label'  => $btn_text,
+		    ),
+	    );
+	    $data = apply_filters( 'wpec_manual_checkout_button_js_data', $data);
+
+	    $output = '';
+
+	    ob_start();
+	    ?>
+        <script type="text/javascript">
+            document.addEventListener( "DOMContentLoaded", function() {
+                new WPECManualCheckout(<?php echo json_encode($data) ?>, window['<?php echo esc_js($sc_id) ?>']);
+            });
+        </script>
+	    <?php
+	    $output .= ob_get_clean();
+
+	    return $output;
+    }
 
 	public function generate_price_tag( $args ) {		
 		$args['price']	= floatval($args['price']);
@@ -371,7 +516,9 @@ class Shortcodes {
 			return $this->show_err_msg( $exc->getMessage(), $exc->getCode() );
 		}
 
-		if ( 'COMPLETED' !== $order->get_data( 'state' ) ) {
+        $status = $order->get_data( 'state' );
+
+		if ( ! Utils::is_completed_status($status) ) {
 			return $this->show_err_msg( sprintf( __( 'Payment is not approved. Status: %s', 'wp-express-checkout' ), $order->get_data( 'state' ) ), 'order-state' );
 		}
 
@@ -488,15 +635,13 @@ class Shortcodes {
 		return $content;
 	}
 
-	public function shortcode_wpec_show_all_products($params=array())
-	{
-		
+	public function shortcode_wpec_show_all_products($params=array()) {
 		$params = shortcode_atts(
 			array(
 				'items_per_page' => '30',
 				'sort_by'        => 'ID',
 				'sort_order'     => 'DESC',
-				'template'       => '',
+				'template'       => '1',
 				'search_box'     => '1',
 			),
 			$params,
@@ -506,15 +651,12 @@ class Shortcodes {
 		//if user has changed sort by from UI
 		$sort_by = isset( $_GET['wpec-sortby'] ) ? sanitize_text_field( stripslashes ( $_GET['wpec-sortby'] ) ) : '';
 
-		include_once WPEC_PLUGIN_PATH . 'public/views/templates/all-products/all-products.php';
-
 		$page = filter_input( INPUT_GET, 'wpec_page', FILTER_SANITIZE_NUMBER_INT );
 
 		$page = empty( $page ) ? 1 : $page;		
 
 		$order_by = isset( $params['sort_by'] ) ? ( $params['sort_by'] ) : 'none';
 
-		
 		$sort_direction = isset( $params['sort_order'] ) ? strtoupper( $params['sort_order'] ) : 'DESC';
 
 		if($sort_by)
@@ -522,7 +664,6 @@ class Shortcodes {
 			$order_by=explode("-",$sort_by)[0];
 			$sort_direction=isset(explode("-",$sort_by)[1])?explode("-",$sort_by)[1]:"asc";
 		}
-		
 
 		$q = array(
 			'post_type'      => Products::$products_slug,
@@ -543,144 +684,31 @@ class Shortcodes {
 			$q['s'] = $search;
 		}
 
-		$products = Products::retrieve_all_active_products($q,$search);
-
-
-		$search_box = ! empty( $params['search_box'] ) ? $params['search_box'] : false;
-
-		if ( $search_box ) {
-			if ( $search !== false ) {
-				$tpl['clear_search_url']   = esc_url( remove_query_arg( array( 'wpec_search', 'wpec_page' ) ) );
-				$tpl['search_result_text'] = $products->found_posts === 0 ? __( 'Nothing found for', 'wp-express-checkout' ) . ' "%s".' : __( 'Search results for', 'wp-express-checkout' ) . ' "%s".';
-				$tpl['search_result_text'] = sprintf( $tpl['search_result_text'], htmlentities( $search ) );
-				$tpl['search_term']        = htmlentities( $search );
-			} else {
-				$tpl['search_result_text']  = '';
-				$tpl['clear_search_button'] = '';
-				$tpl['search_term']         = '';
-			}
-		} else {
-			$tpl['search_box'] = '';
-		}
-
-		
-
-		$tpl['products_list'] .= $tpl['products_row_start'];
-		$i                     = $tpl['products_per_row']; //items per row
-
-		while ( $products->have_posts() ) {
-			$products->the_post();	
-			$product;		
-			
-			$i --;
-			if ( $i < 0 ) { //new row
-				$tpl['products_list'] .= $tpl['products_row_end'];
-				$tpl['products_list'] .= $tpl['products_row_start'];
-				$i                     = $tpl['products_per_row'] - 1;
-			}
-
-			$id = get_the_ID();
-			
-
-			try {
-				$product = Products::retrieve( $id );				
-			} catch ( Exception $exc ) {
-				return $this->show_err_msg( $exc->getMessage() );								
-			}
-
-			$thumb_url = $product->get_thumbnail_url();
-
-
-			if ( ! $thumb_url ) {
-				$thumb_url = WPEC_PLUGIN_URL . '/assets/img/product-thumb-placeholder.png';
-			}
-
-			$view_btn = str_replace( '%[product_url]%', get_permalink(), $tpl['view_product_btn'] );
-
-			$price = $product->get_price();			
-			
-			$price_args = array_merge(
-				array(
-					'price'           => 0,
-					'shipping'        => 0,
-					'tax'             => 0,
-					'quantity'        => 1,
-				),
-				array(
-					'name'            => get_the_title( $id ),
-					'price'           => (float) $product->get_price(),
-					'shipping'        => $product->get_shipping(),
-					'shipping_per_quantity' => $product->get_shipping_per_quantity(),
-					'tax'             => $product->get_tax(),
-					'quantity'        => $product->get_quantity(),
-					'product_id'      => $id,
-				)
-			);
-
-			
-			$price = $this->generate_price_tag( $price_args );
-
-			$item = str_replace(
-				array(
-					'%[product_id]%',
-					'%[product_name]%',
-					'%[product_thumb]%',
-					'%[view_product_btn]%',
-					'%[product_price]%',
-				),
-				array(
-					$id,
-					get_the_title(),
-					$thumb_url,
-					$view_btn,
-					$price,
-				),
-				$tpl['products_item']
-			);
-
-			$tpl['products_list'] .= $item;
-		}
-
-		$tpl['products_list'] .= $tpl['products_row_end'];
-
-		//pagination
-
-		$tpl['pagination_items'] = '';
-
-		$pages = $products->max_num_pages;
-
-		if ( $pages > 1 ) {
-			$i = 1;
-
-			while ( $i <= $pages ) {
-				if ( $i != $page ) {
-					$url = esc_url( add_query_arg( 'wpec_page', $i ) );
-					$str = str_replace( array( '%[url]%', '%[page_num]%' ), array( $url, $i ), $tpl['pagination_item'] );
-				} else {
-					$str = str_replace( '%[page_num]%', $i, $tpl['pagination_item_current'] );
-				}
-				$tpl['pagination_items'] .= $str;
-				$i ++;
-			}
-		}
-
-		if ( empty( $tpl['pagination_items'] ) ) {
-			$tpl['pagination'] = '';
+		try {
+			$products = Products::retrieve_all_active_products( $q, $search );
+		} catch (\Exception $e) {
+			return '<p class="wpec-error-message">' . esc_html($e->getMessage()) . '</p>';
 		}
 
 		wp_reset_postdata();
 
-		//Build template
-		foreach ( $tpl as $key => $value ) {
-			$tpl['page'] = str_replace( '_%' . $key . '%_', $value, $tpl['page'] );
-		}
+        $args = array(
+	        'sc_params' => $params,
+	        'products' => $products,
+	        'page' => $page,
+	        'search' => $search,
+	        'sort_by' => $sort_by,
+        );
 
-		$output = '<div class="wpec_shop_products">'.$tpl['page'].'</div>';
+		$template_no = isset( $params['template'] ) ? absint(sanitize_text_field( $params['template'] )) : 1;
+		$template = 'all-products/all-products-'. $template_no;
+
+        $output = Utils::wpec_load_template($template, $args);
+
 		return $output;
 	}
 
-	public function shortcode_wpec_show_products_from_category($params = array())
-	{
+	public function shortcode_wpec_show_products_from_category($params = array()) {
 		$params=shortcode_atts(
 			array(
 				'items_per_page' => '30',
@@ -695,8 +723,6 @@ class Shortcodes {
 			'wpec_show_products_from_category'
 		);
 
-		include_once WPEC_PLUGIN_PATH . 'public/views/templates/all-products/all-products-from-category.php';
-		
 		$page = filter_input(INPUT_GET, 'wpec_page', FILTER_SANITIZE_NUMBER_INT);
 
 		$page = empty($page) ? 1 : $page;
@@ -737,9 +763,8 @@ class Shortcodes {
 			}
 		}
 
-		
 		$q = array(
-			'post_type'      => Products::$products_slug,			
+			'post_type'      => Products::$products_slug,
 			'post_status'    => 'publish',
 			'posts_per_page' => isset($params['items_per_page']) ? $params['items_per_page'] : 30,
 			'paged'          => $page,
@@ -747,7 +772,6 @@ class Shortcodes {
 			'order'          => isset($params['sort_order']) ? strtoupper($params['sort_order']) : 'DESC',
 			'tax_query' => $wp_tax_query
 		);
-
 
 		//handle search
 		$search = isset( $_GET['wpec_search'] ) ? sanitize_text_field( stripslashes ( $_GET['wpec_search'] ) ) : '';
@@ -758,138 +782,28 @@ class Shortcodes {
 			$q['s'] = $search;
 		}
 
-		$products = Products::retrieve_all_active_products($q, $search);
-
-		$search_box = !empty($params['search_box']) ? $params['search_box'] : false;
-
-		if ($search_box) {
-			if ($search !== false) {
-				$tpl['clear_search_url']   = esc_url(remove_query_arg(array('wpec_search', 'wpec_page')));
-				$tpl['search_result_text'] = $products->found_posts === 0 ? __('Nothing found for', 'wp-express-checkout') . ' "%s".' : __('Search results for', 'wp-express-checkout') . ' "%s".';
-				$tpl['search_result_text'] = sprintf($tpl['search_result_text'], htmlentities($search));
-				$tpl['search_term']        = htmlentities($search);
-			} else {
-				$tpl['search_result_text']  = '';
-				$tpl['clear_search_button'] = '';
-				$tpl['search_term']         = '';
-			}
-		} else {
-			$tpl['search_box'] = '';
-		}
-
-		$tpl['products_list'] .= $tpl['products_row_start'];
-		$i                     = $tpl['products_per_row']; //items per row
-
-		while ($products->have_posts()) {
-			$products->the_post();
-			$product;
-
-			$i--;
-			if ($i < 0) { //new row
-				$tpl['products_list'] .= $tpl['products_row_end'];
-				$tpl['products_list'] .= $tpl['products_row_start'];
-				$i                     = $tpl['products_per_row'] - 1;
-			}
-
-			$id = get_the_ID();
-
-
-			try {
-				$product = Products::retrieve($id);
-			} catch (Exception $exc) {
-				return $this->show_err_msg($exc->getMessage());
-			}
-
-			$thumb_url = $product->get_thumbnail_url();
-
-
-			if (!$thumb_url) {
-				$thumb_url = WPEC_PLUGIN_URL . '/assets/img/product-thumb-placeholder.png';
-			}
-
-			$view_btn = str_replace('%[product_url]%', get_permalink(), $tpl['view_product_btn']);
-
-			$price = $product->get_price();
-
-			$price_args = array_merge(
-				array(
-					'price'           => 0,
-					'shipping'        => 0,
-					'tax'             => 0,
-					'quantity'        => 1,
-				),
-				array(
-					'name'            => get_the_title( $id ),
-					'price'           => (float) $product->get_price(),
-					'shipping'        => $product->get_shipping(),
-					'shipping_per_quantity' => $product->get_shipping_per_quantity(),
-					'tax'             => $product->get_tax(),
-					'quantity'        => $product->get_quantity(),
-					'product_id'      => $id,
-				)
-			);
-			
-			$price = $this->generate_price_tag( $price_args );
-			
-			$item = str_replace(
-				array(
-					'%[product_id]%',
-					'%[product_name]%',
-					'%[product_thumb]%',
-					'%[view_product_btn]%',
-					'%[product_price]%',
-				),
-				array(
-					$id,
-					get_the_title(),
-					$thumb_url,
-					$view_btn,
-					$price,
-				),
-				$tpl['products_item']
-			);
-
-			$tpl['products_list'] .= $item;
-		}
-
-		$tpl['products_list'] .= $tpl['products_row_end'];
-
-		//pagination
-
-		$tpl['pagination_items'] = '';
-
-		$pages = $products->max_num_pages;
-
-		if ($pages > 1) {
-			$i = 1;
-
-			while ($i <= $pages) {
-				if ($i != $page) {
-					$url = esc_url(add_query_arg('wpec_page', $i));
-					$str = str_replace(array('%[url]%', '%[page_num]%'), array($url, $i), $tpl['pagination_item']);
-				} else {
-					$str = str_replace('%[page_num]%', $i, $tpl['pagination_item_current']);
-				}
-				$tpl['pagination_items'] .= $str;
-				$i++;
-			}
-		}
-
-		if (empty($tpl['pagination_items'])) {
-			$tpl['pagination'] = '';
+		try {
+			$products = Products::retrieve_all_active_products($q, $search);
+		} catch (\Exception $e) {
+			return '<p class="wpec-error-message">' . esc_html($e->getMessage()) . '</p>';
 		}
 
 		wp_reset_postdata();
 
-		//Build template
-		foreach ($tpl as $key => $value) {
-			$tpl['page'] = str_replace('_%' . $key . '%_', $value, $tpl['page']);
-		}
+		$args = array(
+			'sc_params' => $params,
+			'products' => $products,
+			'page' => $page,
+			'search' => $search,
+		);
 
-		$output = '<div class="wpec_shop_products">'.$tpl['page'].'</div>';
+		$template_no = isset( $params['template'] ) ? absint(sanitize_text_field( $params['template'] )) : 1;
+		$template = 'all-products/all-products-from-category-'. $template_no;
+
+		$output = Utils::wpec_load_template($template, $args);
+
 		return $output;
 	}
-
 
 	/**
 	 * Locate template including plugin folder.

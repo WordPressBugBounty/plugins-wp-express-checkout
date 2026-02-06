@@ -234,7 +234,9 @@ class Admin {
 		add_settings_section( 'ppdg-debug-logging-section', __( 'Debug Logging', 'wp-express-checkout' ), array( $this, 'debug_logging_note' ), $this->plugin_slug );
 
 		// PayPal Settings Tab Sections
-		add_settings_section( 'ppdg-paypal-settings-arbitrary-section', __( '', 'wp-express-checkout' ), array( $this, 'handle_paypal_settings_arbitrary_section' ), $this->plugin_slug . '-pp-settings' );
+		add_settings_section( 'ppdg-paypal-settings-arbitrary-section', __( '', 'wp-express-checkout' ), array( $this, 'handle_paypal_settings_arbitrary_section' ), $this->plugin_slug . '-pp-arbitrary-settings' );
+
+		add_settings_section( 'ppdg-paypal-settings-section', __( 'PayPal General Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-settings' );
 
 		add_settings_section( 'ppdg-live-sandbox-mode-section', __( 'Live Mode or Sandbox', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-api-connection' );
 		add_settings_section( 'ppdg-pp-account-connection-section', __( 'PayPal Account Connection', 'wp-express-checkout' ), null, $this->plugin_slug . '-pp-api-connection'  );
@@ -257,6 +259,13 @@ class Admin {
 		add_settings_section( 'ppdg-link-expiry-section', __( 'Download Link Expiry', 'wp-express-checkout' ), null, $this->plugin_slug . '-advanced' );
 		add_settings_section( 'ppdg-dl-manager-section', __( 'Download Manager (Force Download)', 'wp-express-checkout' ), array( $this, 'dl_manager_description' ), $this->plugin_slug . '-advanced' );
 		add_settings_section( 'wpec-access-section', __( 'Admin Dashboard Access Permission', 'wp-express-checkout' ), array( $this, 'access_description' ), $this->plugin_slug . '-advanced' );
+
+		// Stripe Settings Tab Sections
+		add_settings_section( 'wpec-stripe-settings-arbitrary-section', __( '', 'wp-express-checkout' ), array( $this, 'handle_stripe_settings_arbitrary_section' ), 'wpec-stripe-arbitrary-settings' );
+		add_settings_section( 'wpec-stripe-settings-section', __( 'Stripe General Settings', 'wp-express-checkout' ), null, 'wpec-stripe-settings' );
+		add_settings_section( 'wpec-stripe-live-sandbox-mode-section', __( 'Live Mode or Sandbox', 'wp-express-checkout' ), null, 'wpec-stripe-settings' );
+		add_settings_section( 'wpec-stripe-credentials-section', __( 'Stripe API Credentials', 'wp-express-checkout' ), null, 'wpec-stripe-api-credentials');
+		add_settings_section( 'wpec-stripe-button-style-section', __( 'Stripe Button Appearance Settings', 'wp-express-checkout' ), null, 'wpec-stripe-btn-appearance' );
 
 		// Manual Checkout Tab Sections
 		add_settings_section( 'wpec-manual-checkout-section', __( 'Manual/Offline Checkout Settings', 'wp-express-checkout' ), null, $this->plugin_slug . '-manual-checkout' );
@@ -356,6 +365,15 @@ class Admin {
 		/****************************/
 		/* PayPal Settings Menu Tab */
 		/****************************/
+		$paypal_checkout_description = '<p>' . __( 'Select this option to enable paypal checkout.', 'wp-express-checkout' );
+		$paypal_checkout_description .= ' ' . '<a href="https://wp-express-checkout.com/paypal-settings-configuration-api-credentials-setup/" target="_blank">'. __('Read the documentation', 'wp-express-checkout') . '</a>.' . '</p>';
+		add_settings_field( 'enable_paypal_checkout', __( 'Enable PayPal Checkout', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-settings', 'ppdg-paypal-settings-section',
+			array(
+				'field' => 'enable_paypal_checkout',
+				'type'  => 'checkbox',
+				'class' => '',
+				'desc'  => sprintf($paypal_checkout_description),
+			) );
 
 		add_settings_field( 'is_live', __( 'Live Mode', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), $this->plugin_slug . '-pp-api-connection', 'ppdg-live-sandbox-mode-section', array( 'field' => 'is_live', 'type' => 'checkbox', 'desc' => __( 'Enable this to run transactions in live mode. When unchecked, transactions will be processed in sandbox mode.', 'wp-express-checkout' ) ) );
 
@@ -535,6 +553,132 @@ class Admin {
 			. __( 'This is the body of the email that will be sent to the seller for record. Do not change the text within the braces {}. You can use the following email tags in this email body field:', 'wp-express-checkout' )
 			. $tags_desc,
 		) );
+
+		/****************************/
+		/* Stripe Checkout Menu Tab */
+		/****************************/
+		$stripe_checkout_description = '<p>' . __( 'Select this option to enable stripe checkout.', 'wp-express-checkout' );
+		$stripe_checkout_description .= ' ' . '<a href="https://wp-express-checkout.com/stripe-settings-configuration-stripe-api-credentials-setup/" target="_blank">'. __('Read the documentation', 'wp-express-checkout') . '</a>.' . '</p>';
+
+		// stripe general settings section fields.
+		add_settings_field( 'enable_stripe_checkout', __( 'Enable Stripe Checkout', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-settings', 'wpec-stripe-settings-section',
+			array(
+				'field' => 'enable_stripe_checkout',
+				'type'  => 'checkbox',
+				'class' => '',
+				'desc'  => sprintf( $stripe_checkout_description ),
+			) );
+
+		add_settings_field( 'stripe_allowed_countries', __( 'Allowed Countries For Shipping', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-settings', 'wpec-stripe-settings-section',
+			array(
+				'field' => 'stripe_allowed_countries',
+				'type'  => 'text',
+				'class' => 'wpec_input_width_full',
+				'desc'  => sprintf(__( 'Enter the countries that are allowed for shipping by specifying their two-letter ISO country codes separated by comma. For example: US, CA, AU, GE, ES etc. %s', 'wp-express-checkout' ), ' <a href="https://www.nationsonline.org/oneworld/country_code_list.htm" target="_blank">'.__('See the list of ISO country codes here.', 'wp-express-checkout').'</a>')
+			)
+		);
+
+		add_settings_field( 'stripe_is_live', __( 'Live Mode', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-settings', 'wpec-stripe-live-sandbox-mode-section',
+			array(
+				'field' => 'stripe_is_live',
+				'type'  => 'checkbox',
+				'desc'  => __( 'Enable this to run transactions in live mode. When unchecked, transactions will be processed in test mode.', 'wp-express-checkout' )
+			)
+		);
+
+		// stripe api credentials section.
+		add_settings_field( 'stripe_live_publishable_key', __( 'Live Publishable Key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-api-credentials', 'wpec-stripe-credentials-section',
+			array(
+				'field' => 'stripe_live_publishable_key',
+				'type'  => 'text',
+				'class' => 'wpec_input_width_three_fourth',
+				'desc'  => __( 'Enter your Stripe Publishable Key for live mode.', 'wp-express-checkout' ),
+			)
+		);
+		add_settings_field( 'stripe_live_secret_key', __( 'Live Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-api-credentials', 'wpec-stripe-credentials-section',
+			array(
+				'field' => 'stripe_live_secret_key',
+				'type'  => 'text',
+				'class' => 'wpec_input_width_three_fourth',
+				'desc'  => __( 'Enter your Stripe Secret Key for live mode.', 'wp-express-checkout' ),
+			)
+		);
+		add_settings_field( 'stripe_test_publishable_key', __( 'Test Publishable Key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-api-credentials', 'wpec-stripe-credentials-section',
+			array(
+				'field' => 'stripe_test_publishable_key',
+				'type'  => 'text',
+				'class' => 'wpec_input_width_three_fourth',
+				'desc'  => __( 'Enter your Stripe Publishable Key for test mode.', 'wp-express-checkout' ),
+			)
+		);
+		add_settings_field( 'stripe_test_secret_key', __( 'Test Secret key', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-api-credentials', 'wpec-stripe-credentials-section',
+			array(
+				'field' => 'stripe_test_secret_key',
+				'type'  => 'text',
+				'class' => 'wpec_input_width_three_fourth',
+				'desc'  => __( 'Enter your Stripe Secret Key for test mode.', 'wp-express-checkout' ),
+			)
+		);
+
+		// stripe button style section.
+		add_settings_field( 'stripe_btn_text', __( 'Button Text', 'wp-express-checkout' ), array( $this,'settings_field_callback'), 'wpec-stripe-btn-appearance', 'wpec-stripe-button-style-section',
+			array(
+				'field' => 'stripe_btn_text',
+				'type' => 'text',
+				'class' => 'wpec-button-style-input wpec_input_width_one_fourth',
+				'placeholder' => __( 'Stripe', 'wp-express-checkout' ),
+				'desc' => __( 'The text that appear on the button', 'wp-express-checkout' ),
+				'size' => 10
+			) );
+
+		add_settings_field( 'stripe_btn_shape', __( 'Button Shape', 'wp-express-checkout' ), array( $this,'settings_field_callback'), 'wpec-stripe-btn-appearance', 'wpec-stripe-button-style-section',
+			array(
+				'field' => 'stripe_btn_shape',
+				'type'  => 'select',
+				'class' => 'wpec-button-style-input',
+				'desc'  => '',
+				'vals'  => array( 'pill', 'rect' ),
+				'texts' => array( __( 'Pill', 'wp-express-checkout' ), __( 'Rectangle', 'wp-express-checkout' ) )
+			) );
+
+		add_settings_field( 'stripe_btn_height', __( 'Button Size', 'wp-express-checkout' ), array( $this, 'settings_field_callback' ), 'wpec-stripe-btn-appearance', 'wpec-stripe-button-style-section',
+			array(
+				'field' => 'stripe_btn_height',
+				'type'  => 'select',
+				'class' => 'wpec-button-style-input',
+				'desc'  => '',
+				'vals'  => array( 'small', 'medium', 'large', 'xlarge' ),
+				'texts' => array(
+					__( 'Small', 'wp-express-checkout' ),
+					__( 'Medium', 'wp-express-checkout' ),
+					__( 'Large', 'wp-express-checkout' ),
+					__( 'Extra Large', 'wp-express-checkout' )
+				)
+			) );
+		add_settings_field( 'stripe_btn_width', __( 'Button Width', 'wp-express-checkout' ), array( $this,'settings_field_callback'), 'wpec-stripe-btn-appearance', 'wpec-stripe-button-style-section',
+			array(
+				'field' => 'stripe_btn_width',
+				'type' => 'number',
+				'class' => 'wpec-button-style-input',
+				'placeholder' => __( 'Auto', 'wp-express-checkout' ),
+				'desc' => __( 'Button width in pixels. Minimum width is 150px. Leave it blank for auto width.', 'wp-express-checkout' ),
+			) );
+		add_settings_field( 'stripe_btn_color', __( 'Button Color', 'wp-express-checkout' ), array( $this,'settings_field_callback'), 'wpec-stripe-btn-appearance', 'wpec-stripe-button-style-section',
+			array(
+				'field' => 'stripe_btn_color',
+				'type'  => 'select',
+				'class' => 'wpec-button-style-input',
+				'desc'  => '<div id="wp-ppdg-preview-container"><p style="margin-bottom: 10px">' . __( 'Button preview:', 'wp-express-checkout' ) . '</p><div id="stripe-button-container"><button id="stripe-preview-button" class="wpec-stripe-btn">Stripe</button></div></div>',
+				'vals'  => array( 'purple', 'gold', 'blue', 'silver', 'white', 'black' ),
+				'texts' => array(
+					__( 'Purple', 'wp-express-checkout' ),
+					__( 'Gold', 'wp-express-checkout' ),
+					__( 'Blue', 'wp-express-checkout' ),
+					__( 'Silver', 'wp-express-checkout' ),
+					__( 'White', 'wp-express-checkout' ),
+					__( 'Black', 'wp-express-checkout' )
+				)
+			) );
 
 		/****************************/
 		/* Manual Checkout Menu Tab */
@@ -1320,4 +1464,14 @@ class Admin {
 		}
 	}
 
+	public function handle_stripe_settings_arbitrary_section() {
+		echo '<div class="wpec-white-box">';
+		echo __('Check the ', 'wp-express-checkout');
+		echo '<a href="https://wp-express-checkout.com/stripe-settings-configuration-stripe-api-credentials-setup/" target="_blank">'.__('Stripe settings documentation', 'wp-express-checkout').'</a>';
+		echo __(' for a step-by-step guide on configuring these settings.', 'wp-express-checkout');
+		echo '</div>';
+
+		//NOTE: We can't update/save the reset API settings keys here as WP locks the settings fields for the current page.
+		//So the reset is done at 'admin_init' hook. Then the success message is shown here.
+	}
 }

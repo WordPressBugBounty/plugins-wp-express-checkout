@@ -372,10 +372,10 @@ class PayPal_Payment_Button_Ajax_Handler {
 			$exception_msg = json_decode($e->getMessage());
 			if(is_array($exception_msg->details) && sizeof($exception_msg->details)>0){
 				$error_string = $exception_msg->details[0]->issue.". ".$exception_msg->details[0]->description;							
-				Logger::log( 'Error capturing the PayPal order via API call: ' . $error_string, true );
+				Logger::log( 'Error capturing the PayPal order via API call: ' . $error_string, false );
 				return new \WP_Error(2002,$error_string);
 			}
-			Logger::log( 'Error creating PayPal order: ' . $e->getMessage(), true );
+			Logger::log( 'Error creating PayPal order: ' . $e->getMessage(), false );
 			return new \WP_Error(2002,__( 'Something went wrong, the PayPal capture-order API call failed!', 'wp-express-checkout' ));
 		}
 
@@ -514,7 +514,9 @@ class PayPal_Payment_Button_Ajax_Handler {
 				// Logger::log("Expected amount: ". $expected_total_amount . ", Submitted amount: " . $amount, false);
 				
 				// Check if the expected total amount matches the given amount.
-				if ( $amount < $expected_total_amount ) {
+				// We mainly check for underpayment (customer paying less than expected).
+				// Allow a small tolerance for floating-point rounding differences.
+				if ( $amount < $expected_total_amount && !Utils::almost_equal($amount, $expected_total_amount)) {
 					Logger::log("API pre-submission validation amount mismatch. Expected amount: ". $expected_total_amount . ", Submitted amount: " . $amount, false);
 					
 					// Set the last error message that will be displayed to the user.
