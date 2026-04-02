@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Express Checkout
  * Description:       Allows you to accept fast and secure payments for products and services via a payment popup window, supporting both the new PayPal and Stripe Checkout options.
- * Version:           2.4.7
+ * Version:           2.4.8
  * Author:            Tips and Tricks HQ, mra13
  * Author URI:        https://www.tipsandtricks-hq.com/
  * Plugin URI:        https://wp-express-checkout.com/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 //Define constants
-define( 'WPEC_PLUGIN_VER', '2.4.7' );
+define( 'WPEC_PLUGIN_VER', '2.4.8' );
 define( 'WPEC_PLUGIN_URL', plugins_url( '', __FILE__ ) );
 define( 'WPEC_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPEC_PLUGIN_FILE', __FILE__ );
@@ -58,7 +58,7 @@ function wpec_load_classes() {
 	new TTHQ\WPEC\Lib\PayPal\PayPal_Main(
 		array(
 			'plugin_shortname' => 'wpec',
-			'api_connection_settings_page' => WPEC_MENU_PARENT_SLUG . '&page=ppec-settings-page&action=paypal-settings',
+			'api_connection_settings_page' => WPEC_MENU_PARENT_SLUG . '&page=ppec-settings-page&action=paypal-settings&subtab=api-connection',
 			'log_text_method' => '\WP_Express_Checkout\Debug\Logger::log',
 			'log_array_method' => '\WP_Express_Checkout\Debug\Logger::log_array_data',
 			'ppcp_settings_key' => 'ppdg-settings',
