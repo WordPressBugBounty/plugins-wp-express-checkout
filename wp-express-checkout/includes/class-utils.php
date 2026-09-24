@@ -793,49 +793,4 @@ class Utils {
 		return $tpl_html;
 	}
 
-	public static function wp_kses_post_tags_with_form() {
-		// Array of common standard and custom form attributes
-		$all_attributes = array(
-			'action'       => true,
-			'method'       => true,
-			'type'         => true,
-			'name'         => true,
-			'value'        => true,
-			'placeholder'  => true,
-			'id'           => true,
-			'class'        => true,
-			'style'        => true,
-			'checked'      => true,
-			'selected'     => true,
-			'required'     => true,
-			'readonly'     => true,
-			'disabled'     => true,
-			'multiple'     => true,
-			'rows'         => true,
-			'cols'         => true,
-			'for'          => true,
-			'autocomplete' => true,
-			'min'          => true,
-			'max'          => true,
-			'step'         => true,
-			'pattern'      => true,
-			'aria-*'       => true, // WP support for ARIA attributes
-			'data-*'       => true, // WP support for Data attributes
-		);
-
-		$allowed_form_tags = array(
-			'form'     => $all_attributes,
-			'input'    => $all_attributes,
-			'select'   => $all_attributes,
-			'option'   => $all_attributes,
-			'textarea' => $all_attributes,
-			'button'   => $all_attributes,
-			'label'    => $all_attributes,
-		);
-
-		// Merge with standard allowed post tags so paragraph tags, divs, etc. are still kept
-		$allowed_tags = array_merge_recursive( wp_kses_allowed_html( 'post' ), $allowed_form_tags );
-
-		return apply_filters( 'wpec_kses_post_tags_with_form', $allowed_tags );
-	}
 }
