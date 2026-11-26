@@ -111,6 +111,9 @@ class Payment_Processor {
 			$this->send_error( $exc->getMessage(), $exc->getCode() );
 		}
 
+		// The name sent by the browser is only used to find the product's price data (the transient); the order gets the product's name.
+		$item_name = $product->get_item_name();
+
 		$order->set_payment_gateway( 'paypal' );
 		/* translators: Order title: {Quantity} {Item name} - {Status} */
 		$order->set_description( sprintf( __( '%1$d %2$s - %3$s', 'wp-express-checkout' ), $quantity, $item_name, $this->get_transaction_status( $payment ) ) );
@@ -285,6 +288,9 @@ class Payment_Processor {
 			$this->send_error( $exc->getMessage(), $exc->getCode() );
 		}
 
+		// The name sent by the browser is only used to find the product's price data (the transient); the order gets the product's name.
+		$item_name = $product->get_item_name();
+
 		$order->set_payment_gateway( 'paypal' );
 		/* translators: Order title: {Quantity} {Item name} - {Status} */
 		$order->set_description( sprintf( __( '%1$d %2$s - %3$s', 'wp-express-checkout' ), $quantity, $item_name, $this->get_transaction_status( $payment ) ) );
@@ -421,6 +427,8 @@ class Payment_Processor {
 	 */
 	protected function get_payment_data() {
 		$payment = isset( $_POST['wp_ppdg_payment'] ) ? stripslashes_deep( $_POST['wp_ppdg_payment'] ) : array();
+		// The buyer details (name, email, phone, address) come from the browser: keep text only.
+		$payment = is_array( $payment ) ? map_deep( $payment, 'sanitize_text_field' ) : array();
 		return $payment;
 	}
 
